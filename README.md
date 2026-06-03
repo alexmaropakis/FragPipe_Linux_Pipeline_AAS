@@ -37,13 +37,16 @@ Download the wanted zip file and put it in your home directory.
 **Download Java 11+ runtime:**
 ```
 cd ~/bin
-wget https://openjdk-sources.osci.io/openjdk17/openjdk-17.0.18+8.tar.xz
-tar -xvf openjdk-17.0.18+8.tar.xz
-./configure
-make
-sudo make install
-JAVA_HOME=/home/maropakis.a/bin/jdk-17.0.18+8
+wget https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.18%2B8/OpenJDK17U-jdk_x64_linux_hotspot_17.0.18_8.tar.gz
+tar -xzf OpenJDK17U-jdk_x64_linux_hotspot_17.0.18_8.tar.gz
+ls ~/java/jdk-17.0.18+8/bin
+rm OpenJDK17U-jdk_x64_linux_hotspot_17.0.18_8.tar.gz
+
+export JAVA_HOME=/home/maropakis.a/bin/jdk-17.0.18+8
+export PATH=$JAVA_HOME/bin:$PATH
 source ~/.bashrc
+
+java -version
 ```
 
 **Download FragPipe v24.0:**
