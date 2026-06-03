@@ -65,7 +65,10 @@ FragPipe requires decoy sequences in the search database (target-decoy FDR estim
 * ```/scratch/maropakis.a/Dependencies/FASTA/``` -- FASTAs with no decoys
 * ```/scratch/maropakis.a/Dependencies/FASTA_fragpipe/``` -- FASTAs with reversed decoy entries appended (```rev_``` prefixes). Decoys are full sequence reversals (not shuffled).
 
-To generate the FragPipe FASTA copies, run ```generation_scripts/gen_fragpipe_fasta.py```. 
+To generate the FragPipe FASTA copies, run ```generation_scripts/gen_fragpipe_fasta.py```:
+```
+python Alex_gen_fragpipe_fasta.py --fasta-dir /scratch/maropakis.a/Dependencies/FASTA_appended/ --output-dir /scratch/maropakis.a/Dependencies/FASTA_fragpipe/
+```
 
 ## Generating .workflow files 
 
