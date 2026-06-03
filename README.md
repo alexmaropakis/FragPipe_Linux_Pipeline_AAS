@@ -20,7 +20,7 @@ The most recent FragPipe version (and older versions) can be accessed via an aca
 
 Download the wanted zip file and put it in your home directory.
 
-Dependencies for FragPipe v24.0:
+**Dependencies for FragPipe v24.0:**
 * Require Java 11+
 * Require MSFragger 4.4+
 * Require IonQuant 1.11.18+
@@ -34,7 +34,7 @@ Dependencies for FragPipe v24.0:
 * Upgrade FragPipe-PDV to 1.5.6
 * Upgrade FragPipe-SpecLib to 0.1.58
 
-Download Java 11+:
+**Download Java 11+ runtime:**
 ```
 cd ~/bin
 wget https://openjdk-sources.osci.io/openjdk17/openjdk-17.0.18+8.tar.xz
@@ -46,7 +46,7 @@ JAVA_HOME=/home/maropakis.a/bin/jdk-17.0.18+8
 source ~/.bashrc
 ```
 
-Download FragPipe v24.0:
+**Download FragPipe v24.0:**
 ```
 mkdir /home/maropakis.a/fragpipe
 cd fragpipe
@@ -58,3 +58,30 @@ FRAGPIPE_TOOLS=/home/maropakis.a/fragpipe/fragpipe-24/tools
 
 source ~/.bashrc
 ```
+
+## FASTA Database Structure 
+
+FragPipe requires decoy sequences in the search database (target-decoy FDR estimation). You should maintain two separate copies of the FASTA:
+* ```/scratch/maropakis.a/Dependencies/FASTA/``` -- FASTAs with no decoys
+* ```/scratch/maropakis.a/Dependencies/FASTA_fragpipe/``` -- FASTAs with reversed decoy entries appended (```rev_``` prefixes). Decoys are full sequence reversals (not shuffled).
+
+To generate the FragPipe FASTA copies, run ```gen_fragpipe_fasta.py```. 
+
+
+
+
+
+
+
+
+
+
+## Generating .workflow files 
+
+
+
+
+
+
+## 
+
