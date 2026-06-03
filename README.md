@@ -65,20 +65,30 @@ FragPipe requires decoy sequences in the search database (target-decoy FDR estim
 * ```/scratch/maropakis.a/Dependencies/FASTA/``` -- FASTAs with no decoys
 * ```/scratch/maropakis.a/Dependencies/FASTA_fragpipe/``` -- FASTAs with reversed decoy entries appended (```rev_``` prefixes). Decoys are full sequence reversals (not shuffled).
 
-To generate the FragPipe FASTA copies, run ```gen_fragpipe_fasta.py```. 
-
-
-
-
-
-
-
-
-
+To generate the FragPipe FASTA copies, run ```generation_scripts/gen_fragpipe_fasta.py```. 
 
 ## Generating .workflow files 
 
+The FragPipe ```.workflow``` file should be generated and exported from the FragPipe GUI. 
 
+**Key dependencies may include: **
+1. Search type: TMT closed search, standard 
+2. TMT channels (TMT only)
+3. Decoy prefix: ```rev_``` (must match what ```gen_fragpipe_fasta.py``` uses)
+4. Protein FDR: default template value (```--prot 0.05```)
+5. Annotation file (for TMT searches only)
+
+**To create the ```.workflow``` file: **
+1. Open FragPipe GUI on a machine with test RAW files
+2. Load RAW files --> select experiment type
+3. Configure MSFragger search parameters for closed search
+4. Enable Philosopher and TMT-integrator
+5. Export workflow --> save as ```descriptivename.workflow```
+6. Copy to cluster and pass to ```run_ms_search.sh```
+
+## Run search 
+1. Set up manifests + submit jobs by running ```sbatch run_ms_search.sh```
+2. OR generate manifests first, add workflow manually, then submit
 
 
 
