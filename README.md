@@ -71,14 +71,14 @@ To generate the FragPipe FASTA copies, run ```generation_scripts/gen_fragpipe_fa
 
 The FragPipe ```.workflow``` file should be generated and exported from the FragPipe GUI. 
 
-**Key dependencies may include: **
+**Key dependencies may include:**
 1. Search type: TMT closed search, standard 
 2. TMT channels (TMT only)
 3. Decoy prefix: ```rev_``` (must match what ```gen_fragpipe_fasta.py``` uses)
 4. Protein FDR: default template value (```--prot 0.05```)
 5. Annotation file (for TMT searches only)
 
-**To create the ```.workflow``` file: **
+**To create the ```.workflow``` file:**
 1. Open FragPipe GUI on a machine with test RAW files
 2. Load RAW files --> select experiment type
 3. Configure MSFragger search parameters for closed search
