@@ -1,106 +1,145 @@
-# gen_fragpipe_fasta.py
-# Convert MTP FASTA files from AAS pipeline Validation1 output into FragPipe-compatible FASTA with reversed decoys appended
-# OR just appended decoys to FASTAs to use in FragPipe searches 
-#
-# Intended usage:
-#   python gen_fragpipe_fasta.py \
-#   --fasta-dir /scratch/maropakis.a/Dependencies/FASTA_appended/ \
-#   --output-dir /scratch/maropakis.a/Dependencies/FASTA_fragpipe/
-#
-# Input:
-#   Directory containing *_MTP.fasta files
-#
-# Output:
-#   *_fragpipe.fasta files with cleaned headers + decoys appended
+#!/usr/bin/env python3
+"""
+gen_fragpipe_fasta.py
+Build FragPipe-ready FASTAs from *_MTP.fasta using the per-species filtered CSVs.
 
+Reference entries pass through unchanged. Kept MTP entries get a Philosopher-safe
+mock-UniProt header whose accession is <acc>-<mtp_id>-<tmt_set> (made unique per
+entry). Reversed rev_ decoys are appended for *every* target, including MTPs.
+
+ACG*/FC* -> human; everything else -> mouse.
+
+Example:
+  python3 build_fragpipe_fasta.py \
+    --mtp-dir   /scratch/maropakis.a/Dependencies/FASTA_appended/ \
+    --human-csv /scratch/maropakis.a/Dependencies/mtp_maps/human_filtered.csv \
+    --mouse-csv /scratch/maropakis.a/Dependencies/mtp_maps/mouse_filtered.csv \
+    --out-dir   /scratch/maropakis.a/Dependencies/FASTA_fragpipe/
+"""
 import argparse
+import csv
 import os
-import sys
+import re
 
-## Functions 
-# Clean MTP headers into FragPipe-safe format
-def clean_header(h):
-  # this function is essential if running a validation search with MTPs appended a-la-Tsour et al. (2026)
-    if not h.startswith(">"):
-        return h
-    h = h[1:]
-    if h.startswith("MTP|"):
-        core = h.split("|", 1)[1]
-        core = core.split("_base")[0]
-        core = core.replace("|", "_")
-        return ">MTP_" + core
-    return ">" + h.split()[0].replace(" ", "_")
+SPECIES_TAG = {
+    'human': ('Homo sapiens', 9606),
+    'mouse': ('Mus musculus', 10090),
+}
+MTP_ID_RE = re.compile(r'(MTP\d+)\b')
+DECOY_PREFIX = 'rev_'
 
-# Parse FASTA into (header, sequence) tuples
-def parse_fasta(f):
-    entries = []
-    h = None
-    s = []
-    for line in f:
-        line = line.rstrip()
-        if line.startswith(">"):
-            if h is not None:
-                entries.append((h, "".join(s)))
-            h = line
-            s = []
-        else:
-            s.append(line)
-    if h is not None:
-        entries.append((h, "".join(s)))
-    return entries
 
-# Write targets + reversed decoys (excluding MTPs if present in original FASTA)
-def write_fragpipe(entries, out_path, decoy_prefix="rev_"):
-    with open(out_path, "w") as out:
-        cleaned = []
+def species_for(filename):
+    tokens = re.split(r'[._\-]', os.path.basename(filename).upper())
+    is_human = any(t.startswith('ACG') or t.startswith('FC') for t in tokens)
+    return 'human' if is_human else 'mouse'
 
-        for h, seq in entries:
-            ch = clean_header(h)
-            cleaned.append((h, ch, seq))
-            out.write(ch + "\n" + seq + "\n")
 
-        for orig_h, ch, seq in cleaned:
+def tmt_set_for(filename):
+    """Mirror blast_mtps.py: 'ACG_B5_MTP.fasta' -> 'acgb5'."""
+    stem = re.sub(r'_MTP\.fasta$', '', os.path.basename(filename), flags=re.I)
+    return re.sub(r'[^A-Za-z0-9]', '', stem).lower()
 
-            # Skip decoy generation for MTP entries
-            if orig_h.startswith(">MTP|"):
+
+def load_keep(csv_path):
+    """Return {sequence: (accession, gene)} for MTPs marked 'keep'."""
+    keep = {}
+    if csv_path and os.path.exists(csv_path):
+        with open(csv_path, newline='') as fh:
+            for row in csv.DictReader(fh):
+                if row['status'] == 'keep':
+                    keep[row['sequence']] = (row['accession'], row['gene'])
+    return keep
+
+
+def parse_fasta(path):
+    """Yield (header, sequence) tuples; header keeps its leading '>'."""
+    header, seq = None, []
+    with open(path) as fh:
+        for line in fh:
+            line = line.rstrip()
+            if line.startswith('>'):
+                if header is not None:
+                    yield header, ''.join(seq)
+                header, seq = line, []
+            else:
+                seq.append(line)
+    if header is not None:
+        yield header, ''.join(seq)
+
+
+def mtp_header(accession, gene, mid, species):
+    os_name, ox = SPECIES_TAG[species]
+    return (f'>sp|{accession}|{gene}-mut {gene} mistranslated {mid} '
+            f'OS={os_name} OX={ox} GN={gene} PE=1 SV=1')
+
+
+def unique_accession(base, seen):
+    """Return base, or base-d2, base-d3, ... if already taken."""
+    accession, k = base, 2
+    while accession in seen:
+        accession = f'{base}-d{k}'
+        k += 1
+    seen.add(accession)
+    return accession
+
+
+def build(src, dst, keep, species):
+    tmt = tmt_set_for(src)
+    targets, seen_acc = [], set()
+    n_ref = n_mtp = 0
+
+    for header, seq in parse_fasta(src):
+        if header.startswith('>MTP|'):
+            if seq not in keep:
                 continue
+            acc, gene = keep[seq]
+            m = MTP_ID_RE.search(header)
+            mid = m.group(1) if m else header[1:].split()[0]
+            accession = unique_accession(f'{acc}-{mid}-{tmt}', seen_acc)
+            targets.append((mtp_header(accession, gene, mid, species), seq))
+            n_mtp += 1
+        else:
+            targets.append((header, seq))
+            n_ref += 1
 
-            out.write(">" + decoy_prefix + ch[1:] + "\n" + seq[::-1] + "\n")
+    with open(dst, 'w') as out:
+        # Forward targets.
+        for header, seq in targets:
+            out.write(f'{header}\n{seq}\n')
+        # Reversed decoys for every target (references AND MTPs).
+        for header, seq in targets:
+            out.write(f'>{DECOY_PREFIX}{header[1:]}\n{seq[::-1]}\n')
 
-# Process single file
-def process_file(in_path, out_path, force=False):
-    if os.path.exists(out_path) and not force:
-        return False
-    with open(in_path) as f:
-        entries = parse_fasta(f)
-    write_fragpipe(entries, out_path)
-    return True
+    return n_ref, n_mtp
 
-# Main
+
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--fasta-dir", required=True, help="Input directory with *_MTP.fasta files")
-    parser.add_argument("--output-dir", required=True, help="Output directory for FragPipe FASTAs")
-    parser.add_argument("--force", action="store_true", help="Overwrite existing files")
-    args = parser.parse_args()
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--mtp-dir', required=True)
+    ap.add_argument('--human-csv', required=True)
+    ap.add_argument('--mouse-csv', required=True)
+    ap.add_argument('--out-dir', required=True)
+    a = ap.parse_args()
 
-    if not os.path.isdir(args.fasta_dir):
-        sys.exit("ERROR: fasta-dir not found")
+    os.makedirs(a.out_dir, exist_ok=True)
+    keep = {
+        'human': load_keep(a.human_csv),
+        'mouse': load_keep(a.mouse_csv),
+    }
 
-    os.makedirs(args.output_dir, exist_ok=True)
+    n = 0
+    for fn in sorted(os.listdir(a.mtp_dir)):
+        if not fn.endswith('_MTP.fasta'):
+            continue
+        sp = species_for(fn)
+        dst = os.path.join(a.out_dir, fn.replace('_MTP.fasta', '_fragpipe.fasta'))
+        n_ref, n_mtp = build(os.path.join(a.mtp_dir, fn), dst, keep[sp], sp)
+        print(f'{fn} [{sp}]: {n_ref} ref + {n_mtp} MTP kept')
+        n += 1
 
-    files = [f for f in os.listdir(args.fasta_dir) if f.endswith("_MTP.fasta")]
-    if not files:
-        sys.exit("ERROR: no *_MTP.fasta files found")
+    print(f'Wrote {n} FASTAs')
 
-    written = 0
-    for f in sorted(files):
-        src = os.path.join(args.fasta_dir, f)
-        dst = os.path.join(args.output_dir, f.replace("_MTP.fasta", "_fragpipe.fasta"))
-        if process_file(src, dst, args.force):
-            written += 1
 
-    print(f"Done. Written: {written} FASTA files")
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
