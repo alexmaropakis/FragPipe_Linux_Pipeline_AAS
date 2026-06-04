@@ -44,8 +44,10 @@ def parse_fasta(path):
         if line.startswith('>'):
             if h is not None: ent.append((h, ''.join(s)))
             h, s = line, []
-        else: s.append(line)
-    if h is not None: ent.append((h, ''.join(s)))
+        else:
+            s.append(line)
+    if h is not None:
+        ent.append((h, ''.join(s)))
     return ent
 
 def mtp_header(accession, gene, mid, tmt, species):
@@ -56,25 +58,48 @@ def mtp_header(accession, gene, mid, tmt, species):
 def build(src, dst, keep, species, prefix='rev_'):
     tmt = tmt_set_for(src)
     targets, seen_acc, n_ref, n_mtp = [], set(), 0, 0
+
     for h, seq in parse_fasta(src):
         if h.startswith('>MTP|'):
             if seq in keep:
                 acc, gene = keep[seq]
                 m = MTP_ID_RE.search(h)
                 mid = m.group(1) if m else h[1:].split()[0]
-                accession, base, k = f'{acc}-{mid}-{tmt}', f'{acc}-{mid}-{tmt}', 2
-                while accession in seen_acc:        # guard residual dup within file
-                    accession = f'{base}-d{k}'; k += 1
+
+                accession, base, k = (
+                    f'{acc}-{mid}-{tmt}',
+                    f'{acc}-{mid}-{tmt}',
+                    2
+                )
+
+                while accession in seen_acc:
+                    accession = f'{base}-d{k}'
+                    k += 1
+
                 seen_acc.add(accession)
-                targets.append((mtp_header(accession, gene, mid, tmt, species), seq))
+
+                targets.append(
+                    (mtp_header(accession, gene, mid, tmt, species), seq)
+                )
                 n_mtp += 1
+
         else:
-            targets.append((h, seq)); n_ref += 1     # reference, untouched
+            targets.append((h, seq))
+            n_ref += 1
+
     with open(dst, 'w') as out:
+
         for h, seq in targets:
             out.write(h + '\n' + seq + '\n')
+
         for h, seq in targets:
+
+            # Do not generate decoys for MTP entries
+            if '-mut ' in h:
+                continue
+
             out.write('>' + prefix + h[1:] + '\n' + seq[::-1] + '\n')
+
     return n_ref, n_mtp
 
 def main():
@@ -83,18 +108,39 @@ def main():
     ap.add_argument('--human-csv', required=True)
     ap.add_argument('--mouse-csv', required=True)
     ap.add_argument('--out-dir', required=True)
+
     a = ap.parse_args()
+
     os.makedirs(a.out_dir, exist_ok=True)
-    keep = {'human': load_keep(a.human_csv), 'mouse': load_keep(a.mouse_csv)}
+
+    keep = {
+        'human': load_keep(a.human_csv),
+        'mouse': load_keep(a.mouse_csv)
+    }
 
     n = 0
+
     for fn in sorted(os.listdir(a.mtp_dir)):
-        if not fn.endswith('_MTP.fasta'): continue
+        if not fn.endswith('_MTP.fasta'):
+            continue
+
         sp = species_for(fn)
-        dst = os.path.join(a.out_dir, fn.replace('_MTP.fasta', '_fragpipe.fasta'))
-        n_ref, n_mtp = build(os.path.join(a.mtp_dir, fn), dst, keep[sp], sp)
+
+        dst = os.path.join(
+            a.out_dir,
+            fn.replace('_MTP.fasta', '_fragpipe.fasta')
+        )
+
+        n_ref, n_mtp = build(
+            os.path.join(a.mtp_dir, fn),
+            dst,
+            keep[sp],
+            sp
+        )
+
         print(f'{fn} [{sp}]: {n_ref} ref + {n_mtp} MTP kept')
         n += 1
+
     print(f'Wrote {n} FASTAs')
 
 if __name__ == '__main__':
