@@ -8,17 +8,17 @@ Last updated 06-03-2026.
 
 ## Pipeline
 1. Download FragPipe version into home directory
-2. Download software framework dependencies
+2. Download software framework dependencies (MSFragger, IonQuant, diaTracer) into ```~/fragpipe-24.0/tools``` 
 3. Create template workflow files in the FragPipe GUI
 4. Move FASTA files into Linux instance and generate FASTAs with decoys (and MTPs appended if needed, as per Tsour et al. (2026) at the Slavov Lab)
-5. Generate workflow file with ```gen_workflow.py```.
+5. Command ```sbatch submit_fragpipe.sh```
 6. Run FragPipe!
 
 ## Setting up FragPipe in Linux
 
 The most recent FragPipe version (and older versions) can be accessed via an academic license [here](https://github.com/Nesvilab/FragPipe/releases). The official tutorial for using FragPipe can be found [here](https://fragpipe.nesvilab.org/docs/tutorial_fragpipe.html).
 
-Download the wanted zip file and put it in your home directory.
+Download the wanted zip file and put it in your home directory. The version of FragPipe this tutorial is optimized for is bundled in this repository with all dependencies. 
 
 **Dependencies for FragPipe v24.0:**
 * Require Java 11+
@@ -68,9 +68,9 @@ FragPipe requires decoy sequences in the search database (target-decoy FDR estim
 * ```/scratch/maropakis.a/Dependencies/FASTA/``` -- FASTAs with no decoys
 * ```/scratch/maropakis.a/Dependencies/FASTA_fragpipe/``` -- FASTAs with reversed decoy entries appended (```rev_``` prefixes). Decoys are full sequence reversals (not shuffled).
 
-To generate the FragPipe FASTA copies, run ```generation_scripts/gen_fragpipe_fasta.py```:
+To generate the FragPipe FASTA copies, run ```gen_fragpipe_fasta.py```:
 ```
-python Alex_gen_fragpipe_fasta.py --fasta-dir /scratch/maropakis.a/Dependencies/FASTA_appended/ --output-dir /scratch/maropakis.a/Dependencies/FASTA_fragpipe/
+python gen_fragpipe_fasta.py --fasta-dir /scratch/maropakis.a/Dependencies/FASTA_appended/ --output-dir /scratch/maropakis.a/Dependencies/FASTA_fragpipe/
 ```
 
 ## Generating .workflow files 
@@ -80,9 +80,10 @@ The FragPipe ```.workflow``` file should be generated and exported from the Frag
 **Key dependencies may include:**
 1. Search type: TMT closed search, standard 
 2. TMT channels (TMT only)
-3. Decoy prefix: ```rev_``` (must match what ```gen_fragpipe_fasta.py``` uses)
-4. Protein FDR: default template value (```--prot 0.05```)
-5. Annotation file (for TMT searches only)
+3. TMT-integrator=(Philosopher for .mzML files, IonQuant for .raw files)
+4. Decoy prefix: ```rev_``` (must match what ```gen_fragpipe_fasta.py``` uses)
+5. Protein FDR: default template value (```--prot 0.05```)
+6. Annotation file (for TMT searches only)
 
 **To create the ```.workflow``` file:**
 1. Open FragPipe GUI on a machine with test RAW files
@@ -90,14 +91,8 @@ The FragPipe ```.workflow``` file should be generated and exported from the Frag
 3. Configure MSFragger search parameters for closed search
 4. Enable Philosopher and TMT-integrator
 5. Export workflow --> save as ```descriptivename.workflow```
-6. Copy to cluster and pass to ```run_ms_search.sh```
+6. Copy to cluster into ```templates``` folder
 
 ## Run search 
-1. Set up manifests + submit jobs by running ```sbatch run_ms_search.sh```
-2. OR generate manifests first, add workflow manually, then submit
-
-
-
-
-## 
+Set up manifests + submit jobs by running ```sbatch submit_fragpipe.sh```
 
