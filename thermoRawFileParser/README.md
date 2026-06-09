@@ -86,4 +86,3 @@ find $SPECTRA -name '*.raw' -delete
   done
   ```
 - mzML ≈ 1 GB/file — check `df -h /scratch` before bulk conversion.
-```
