@@ -1,61 +1,122 @@
-# Pipeline for Running FragPipe 24.0 in Linux
+# Pipeline
 
-## Templates
+## Requirements
+
+- NCBI BLAST+ 2.17.0 — `~/bin/ncbi-blast-2.17.0+/bin/` (must be on `PATH`)
+- FragPipe 24.0 — `~/fragpipe/fragpipe-24.0/` (MSFragger, IonQuant, Philosopher,
+  TMT-Integrator, MSBooster, Percolator, DIA-NN bundled)
+- JDK 17 — `~/bin/jdk-17.0.18+8`
+- Python 3 with `pandas`
+- SLURM (`short` partition)
+
+Batch jobs don't read `.bashrc` aliases, so the submit scripts export `PATH` /
+`JAVA_HOME` explicitly.
+
+---
+
+## Stage A — BLASTp and database construction
+
+### A1. Map SAAPs to parent proteins — `blast_mtps.py`
+
+Reads `SAAP_quant_df.csv` (columns `MTP_seq`, `BP_seq`, `Dataset`), dedupes on
+`(dataset, MTP, BP)`, computes the substitution (recorded **BP→MTP**), splits by
+species, and BLASTs each unique SAAP against the matching reference proteome with
+`blastp-short` (`-evalue 1000`, `-comp_based_stats 0`, `-max_target_seqs 50`).
+
+A hit counts as full-length only with no gaps, query start at 1, and full query
+coverage. Classification of each SAAP:
+
+| status | meaning |
+|---|---|
+| `drop_reference` | exact 0-mismatch full-length match → it's just the reference |
+| `keep` | best full-length 1-mismatch parent → genuine substitution |
+| `drop_no_parent` | no 1-mismatch full-length parent |
+| `drop_trypsin` | best parent is trypsin (`PRSS1/2/3`, `TRY*`) |
+| `drop_ig` | best parent is immunoglobulin (`IGH/K/L`, `JCHAIN`, `IGJ`) |
+
+`keep` rows are flagged `ambiguous` when 1-mismatch candidates span >1 gene. The
+subject start is captured to report the absolute protein position of the
+substitution (`protein_pos`).
+
+Run (matches `blast_mtps.sh`):
+
+```bash
+sbatch blast_mtps.sh
+```
+
+which calls:
+
+```bash
+python3 blast_mtps.py \
+  --csv        $DEP/mtp_maps/SAAP_quant_df.csv \
+  --human-ref  $DEP/FASTA/HUMAN.fasta \
+  --mouse-ref  $DEP/FASTA/MOUSE_UP000000589_10090.fasta \
+  --out-dir    $DEP/mtp_maps/ \
+  --prefix     April26 \
+  --threads    16
+```
+
+Outputs per species: `<prefix>_{human,mouse}_unfiltered.csv` (all SAAPs with
+classification), `<prefix>_{human,mouse}_filtered.csv` (`keep` only), and the
+intermediate query FASTA + raw BLAST TSV. The reference DB is built on demand
+with `makeblastdb -parse_seqids`.
+
+> Column flags default to `MTP_seq`, `BP_seq`, and `\ufeffDataset` (the dataset
+> column carries a BOM). Override with `--seq-col` / `--bp-col` / `--dataset-col`
+> if the CSV headers differ; the script lists available columns on mismatch.
+
+### A2. Build search databases — `build_fragpipe_fasta.py`
+
+For each `*_MTP.fasta`: reference entries pass through unchanged; kept MTPs (matched
+by sequence against the filtered CSV) get a Philosopher-safe mock-UniProt header
+with a unique accession `<acc>-<mtp_id>-<tmt_set>`; reversed `rev_` decoys are
+appended for **every** target. Output is `<name>_fragpipe.fasta`.
+
+```bash
+python3 build_fragpipe_fasta.py \
+  --mtp-dir   $DEP/FASTA_appended/ \
+  --human-csv $DEP/mtp_maps/human_filtered.csv \
+  --mouse-csv $DEP/mtp_maps/mouse_filtered.csv \
+  --out-dir   $DEP/FASTA_fragpipe/
+```
+
+`build_fragfasta.sh` chains A1 + A2 plus a duplicate-header sanity check in one
+SLURM job. Because the FASTA already carries `rev_` decoys, FragPipe must **not**
+add decoys or contaminants (re-decoying breaks FDR).
+
+---
+
+## Stage B — FragPipe search
+
+### Templates
 
 | Template | Dataset | Species | Acquisition | TMT | Reporter level |
 |---|---|---|---|---|---|
 | `TMT10_MS3_Val.workflow` | Ping 2018 (ACG/FC) | human | MS3 | TMT-10 | 3 |
 | `TMT16_Val.workflow` | Takasugi 2024 (tissues) | mouse | MS2 | TMT-16 | 2 |
 
-Both are closed searches with MSBooster + Percolator, pointed at the
-`_fragpipe.fasta` databases (reference + kept MTPs + `rev_` decoys) from the
-BLASTp stage. Plexes route to a template by name token: `FC*`/`ACG*` → human/MS3;
-tissue names (aorta, brain, heart, kidney, liver, lung, muscle, skin) → mouse/MS2.
+Both: closed search, MSBooster + Percolator on, IonQuant as the TMT extraction
+tool, MSstats off, pointed at the `_fragpipe.fasta` databases. Plexes route by
+name token (`FC*`/`ACG*` → human/MS3; tissue names → mouse/MS2).
 
-## Pipeline order
+### B1. Generate annotations — `gen_annotations.py`
 
-```
-build_fragpipe_fasta.py   (databases — see BLASTp stage)
-        │
-gen_annotations.py        sample_map/*.xlsx → annotations/<slug>_annotation.txt
-        │
-stage_spectra.py          MQ_raw/ → spectra/<plex>/ (symlinks + annotation.txt)
-        │
-run_plexes.py (dry run)   verify routing, FASTA match, channel counts
-        │
-submit_fragpipe.sh        SLURM array, one task per plex
-```
-
-## Scripts
-
-- **`gen_annotations.py`** — one FragPipe `annotation.txt` per TMT set from the
-  `sample_map_*.xlsx` files. Sorts channels into canonical order and
-  disambiguates labels that repeat within a plex (e.g. GIS on two channels).
-  Paths are set at the top of the file (`MAP_DIR`, `OUT_DIR`).
-- **`stage_spectra.py`** — builds one folder per plex under `--spectra-root`,
-  symlinking the spectra and copying in the matching `annotation.txt`. Handles
-  flat Takasugi tissue folders and nested Ping ACG/FC batch subfolders (`ACG/b1`
-  → `acgb1`, etc.).
-- **`run_plexes.py`** — for each plex folder: routes to a template, patches
-  `database.db-path` and `tmtintegrator.channel_num`, writes the `.workflow` and
-  `.fp-manifest`, and (with `--run`) launches FragPipe headless. Without `--run`
-  it only prints the commands — this is the dry run.
-- **`submit_fragpipe.sh`** — SLURM array wrapper; each task reads one plex name
-  from `plex_list.txt` and calls `run_plexes.py --only <plex> --run`.
-
-## Usage
-
-### 1. Generate annotations
+One FragPipe `annotation.txt` per TMT set from `sample_map_*.xlsx` (needs
+`tmt_channel` + `sample_name` columns; casing/spacing normalized). Channels are
+sorted into canonical order and labels repeating within a plex are
+disambiguated (e.g. GIS on two channels). Slug comes from the filename
+(`sample_map_acgb5.xlsx` → `acgb5`). Paths set at top of file.
 
 ```bash
 python3 gen_annotations.py
 ```
 
-Reads `sample_map/*.xlsx`, writes `annotations/<slug>_annotation.txt`. Each
-`.xlsx` needs `tmt_channel` and `sample_name` columns (header casing/spacing is
-normalized). The slug comes from the filename: `sample_map_acgb5.xlsx` → `acgb5`.
+### B2. Stage spectra — `stage_spectra.py`
 
-### 2. Stage spectra
+Builds one folder per plex under `--spectra-root` (created here, not
+pre-existing), symlinking spectra and copying in the matching `annotation.txt`.
+Handles flat Takasugi tissue folders and nested Ping ACG/FC batch subfolders
+(`ACG/b1` → `acgb1`).
 
 ```bash
 python3 stage_spectra.py \
@@ -64,64 +125,48 @@ python3 stage_spectra.py \
   --spectra-root /scratch/maropakis.a/spectra
 ```
 
-The spectra root is *created* here — it's not a pre-existing directory. Each
-resulting `spectra/<plex>/` holds symlinked spectra plus `annotation.txt`. A
-`WARN ... NO annotation` line means the slug from `gen_annotations.py` didn't
-match the plex name — fix the `sample_map` filename or the staging slug.
+A `WARN ... NO annotation` line means the annotation slug didn't match the plex
+name — fix the `sample_map` filename or staging slug.
 
-### 3. Dry run
+### B3. Dry run — `run_plexes.py`
+
+Routes each plex folder to a template, patches `database.db-path` and
+`tmtintegrator.channel_num`, writes the `.workflow` + `.fp-manifest`, and (with
+`--run`) launches FragPipe headless. Without `--run` it only prints — the dry run:
 
 ```bash
 bash run_dry.sh
 ```
 
-which is:
+Confirm every plex shows the right template, channel count, and a matched
+`fasta=`. Investigate any `SKIP` (missing FASTA / annotation / spectra, or no
+routing rule) or `WARN` (channel count ≠ expected) before submitting. Add
+`--only <plex>` for a single plex.
 
-```bash
-python3 run_plexes.py \
-  --spectra-root /scratch/maropakis.a/spectra \
-  --fasta-dir    /scratch/maropakis.a/Dependencies/FASTA_fragpipe \
-  --template-dir /home/maropakis.a/scripts/FragPipe/templates \
-  --out-dir      /scratch/maropakis.a/Frag_outputs \
-  --fragpipe-bin /home/maropakis.a/fragpipe/fragpipe-24.0/bin/fragpipe \
-  --tools-folder /home/maropakis.a/fragpipe/fragpipe-24.0/tools
-```
+### B4. Submit the array — `submit_fragpipe.sh`
 
-No `--run`, so it only prints. Confirm every plex shows the right template,
-channel count, and a matched `fasta=`. Investigate any `SKIP` (missing FASTA /
-annotation / spectra, or no routing rule) or `WARN` (channel count ≠ expected)
-before submitting. Add `--only <plex>` to check a single plex.
-
-### 4. Submit the array
-
-Build the plex list (one plex name per line, matching the staged folder names),
-then submit:
+Build the plex list (one name per line, matching staged folder names), then
+submit one task per plex:
 
 ```bash
 ls /scratch/maropakis.a/spectra > /scratch/maropakis.a/Frag_outputs/plex_list.txt
 sbatch --array=1-18 submit_fragpipe.sh
 ```
 
-`--array=1-18` with no `%N` cap submits all 18 plexes as independent tasks with
-no concurrency limit; add e.g. `%5` to cap at five concurrent. The array index
-selects the line from `plex_list.txt`. Test one task first:
+`--array=1-18` with no `%N` cap submits all 18 with no concurrency limit (add
+e.g. `%5` to cap). Test one task first with `--array=1-1`. The script itself can
+be regenerated from the heredoc in `submit_prep.txt`.
 
-```bash
-sbatch --array=1-1 submit_fragpipe.sh
-```
-
-`submit_fragpipe.sh` itself can be regenerated from the heredoc in
-`submit_prep.txt` (copy/paste into the terminal).
+---
 
 ## Editing the templates
 
 `run_plexes.py` patches only `database.db-path` and `tmtintegrator.channel_num`
-per plex. Everything else (decoy tag, MSBooster, extraction tool, MSstats) lives
-in the templates and is set once. Edits we've made:
+per plex; everything else lives in the templates and is set once. Edits made:
 
-**Reporter extraction Philosopher → IonQuant** — Philosopher can't read `.raw`
-(mzML only); IonQuant reads `.raw` natively. No `^...$` anchors (trailing
-whitespace / CR makes anchored patterns miss silently):
+**Reporter extraction Philosopher → IonQuant** — Philosopher reads mzML only;
+IonQuant reads `.raw` natively. No `^...$` anchors (trailing whitespace / CR makes
+anchored patterns miss silently):
 
 ```bash
 sed -i.bak 's/extraction_tool=Philosopher/extraction_tool=IonQuant/' \
@@ -130,8 +175,7 @@ grep -H 'extraction_tool=' templates/TMT16_Val.workflow templates/TMT10_MS3_Val.
 ```
 
 **Disable MSstats** — `philosopher-msstats=true` requires Philosopher as the
-extraction tool, so it conflicts with IonQuant. The output isn't used downstream
-(`Validation2`/`Quant_TMT_SAAPs` consume `tmt-report` tables and `psm.tsv`):
+extraction tool, so it conflicts with IonQuant; the output isn't used downstream:
 
 ```bash
 sed -i.bak2 's/philosopher-msstats=true/philosopher-msstats=false/' \
@@ -140,14 +184,12 @@ grep -H 'philosopher-msstats=' templates/TMT16_Val.workflow templates/TMT10_MS3_
 ```
 
 > `sed -i.bak` saves the original as `<file>.bak`; restore with
-> `mv <file>.bak <file>`. The database already carries `rev_` decoys, so leave
-> any add-decoys / add-contaminants option **off** (re-decoying breaks FDR).
+> `mv <file>.bak <file>`.
 
-### Edits don't propagate to already-generated per-plex copies
-
-Editing a template does **not** update `.workflow` files `run_plexes.py` already
-wrote into `Frag_outputs/`. Regenerate by re-running the dry run / submission.
-If a run throws an error you thought you fixed, check the copy it actually used:
+**Edits don't propagate to already-generated per-plex copies.** Editing a
+template does not update the `.workflow` files `run_plexes.py` already wrote into
+`Frag_outputs/`; regenerate by re-running the dry run / submission. If a run
+throws an error you thought you fixed, check the copy it actually used:
 
 ```bash
 grep -r '^tmtintegrator.extraction_tool=' \
@@ -155,15 +197,31 @@ grep -r '^tmtintegrator.extraction_tool=' \
   /scratch/maropakis.a/Frag_outputs/workflows/
 ```
 
+---
+
+## Key paths
+
+| | |
+|---|---|
+| Scripts | `/home/maropakis.a/scripts/` (`BLASTp/`, `FragPipe/`) |
+| Dependencies | `/scratch/maropakis.a/Dependencies/` |
+| Reference FASTAs | `Dependencies/FASTA/{HUMAN,MOUSE_UP000000589_10090}.fasta` |
+| Appended MTP FASTAs | `Dependencies/FASTA_appended/*_MTP.fasta` |
+| Search databases | `Dependencies/FASTA_fragpipe/*_fragpipe.fasta` |
+| Annotations | `Dependencies/annotations/` |
+| Staged spectra | `/scratch/maropakis.a/spectra/<plex>/` |
+| FragPipe outputs | `/scratch/maropakis.a/Frag_outputs/` |
+
+---
+
 ## Notes
 
-- Java: `submit_fragpipe.sh` pins JDK 17 (`$HOME/bin/jdk-17.0.18+8`).
-- The on-disk `submit_fragpipe.sh` requests 10 CPUs / 40G; the `submit_prep.txt`
-  heredoc requests 16 CPUs / 64G. `run_plexes.py` defaults to `--threads 16
-  --ram 64`, so the 10/40 version under-provisions threads relative to what
+- **CPU/RAM mismatch:** on-disk `submit_fragpipe.sh` requests 10 CPUs / 40G while
+  `submit_prep.txt` requests 16 / 64G, and `run_plexes.py` defaults to
+  `--threads 16 --ram 64`. The 10/40 version under-provisions relative to what
   FragPipe is told to use — pick one and keep them consistent.
-- MSBooster needs a DIA-NN binary; confirm one exists or it errors mid-run:
+- **MSBooster needs DIA-NN:** confirm a binary exists or it errors mid-run —
   `find ~/fragpipe/fragpipe-24.0 -iname '*diann*' 2>/dev/null`.
-- FragPipe output (`psm.tsv`/`ion.tsv`/`tmt-report`) is not drop-in compatible
-  with the MaxQuant-based downstream scripts — a conversion step is still needed.
-```
+- **Downstream compatibility:** FragPipe output (`psm.tsv` / `ion.tsv` /
+  `tmt-report`) is not drop-in compatible with the MaxQuant-based
+  `Validation2` / `Quant_TMT_SAAPs` scripts — a conversion step is still needed.
