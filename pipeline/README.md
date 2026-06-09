@@ -1,4 +1,5 @@
-# Pipeline
+# Pipeline to run FragPipe 24.0 in Linux. 
+Note: this tutorial is optimized in the context of research I am doing in the Slavov Lab studying substituted amino acid peptides (SAAPs) arising from alternative RNA decoding. Thus, there will be discussion of appending SAAP sequences to canonical .FASTA files with FragPipe-compatible headers. If not performing a similar analysis, run the Pipeline found in `Generic`. 
 
 ## Requirements
 
@@ -211,17 +212,3 @@ grep -r '^tmtintegrator.extraction_tool=' \
 | Annotations | `Dependencies/annotations/` |
 | Staged spectra | `/scratch/maropakis.a/spectra/<plex>/` |
 | FragPipe outputs | `/scratch/maropakis.a/Frag_outputs/` |
-
----
-
-## Notes
-
-- **CPU/RAM mismatch:** on-disk `submit_fragpipe.sh` requests 10 CPUs / 40G while
-  `submit_prep.txt` requests 16 / 64G, and `run_plexes.py` defaults to
-  `--threads 16 --ram 64`. The 10/40 version under-provisions relative to what
-  FragPipe is told to use — pick one and keep them consistent.
-- **MSBooster needs DIA-NN:** confirm a binary exists or it errors mid-run —
-  `find ~/fragpipe/fragpipe-24.0 -iname '*diann*' 2>/dev/null`.
-- **Downstream compatibility:** FragPipe output (`psm.tsv` / `ion.tsv` /
-  `tmt-report`) is not drop-in compatible with the MaxQuant-based
-  `Validation2` / `Quant_TMT_SAAPs` scripts — a conversion step is still needed.
