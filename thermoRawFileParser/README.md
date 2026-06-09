@@ -1,34 +1,24 @@
-# RAW → mzML → FragPipe Pipeline
+# RAW → mzML File Conversion
 
-Converts Thermo `.raw` to mzML, then runs per-plex FragPipe headless searches
-across all TMT plexes on the Explorer cluster (MGHPCC).
+Converts Thermo `.raw` to mzML for all TMT plexes on Explorer (MGHPCC), as a
+SLURM array (one task per plex). Output is **plain** `.mzML` — gzipped mzML
+isn't searchable by MSFragger, and skipping gzip avoids a separate
+decompression step.
 
 ## Layout
 
 ```
-$SPECTRA/<plex>/         # raw + mzML + annotation.txt, one folder per plex
-$SPECTRA/logs/           # conversion logs (not a plex)
-$DEP/FASTA_fragpipe/     # per-plex search FASTAs
-$OUT/{logs,workflows,manifests,results}/
-$SCRIPTS/{run_plexes.py,submit_fragpipe.sh,templates/}
+$SPECTRA/<plex>/    # raw + mzML, one folder per plex
+$SPECTRA/logs/      # conversion logs (NOT a plex)
 ```
 
-Plexes route by name: tokens starting `ACG`/`FC` → human (TMT-10, MS3);
-tissue names (aorta, brain, heart, …) → mouse (TMTpro-16, MS2).
+## Prerequisite
 
-## Prerequisites
+[ThermoRawFileParser 2.0.0](https://github.com/compomics/ThermoRawFileParser) -- self-contained Linux build (no Mono required)
 
-- ThermoRawFileParser (self-contained Linux build) — no Mono required
-- FragPipe 24.0 with bundled `tools/`; MSFragger jar stored separately
-- Java 17 (for FragPipe); .NET only if using a framework-based TRFP build
+Reference: Hulstaert N, Shofstahl J, Sachsenberg T, Walzer M, Barsnes H, Martens L, Perez-Riverol Y: ThermoRawFileParser: Modular, Scalable, and Cross-Platform RAW File Conversion [PMID 31755270].
 
----
-
-## Step 1 — Convert RAW → mzML
-
-SLURM array, one task per plex. Output is **plain** `.mzML` (`-f=2`, no `-g`):
-gzipped mzML is not searchable by MSFragger, and skipping gzip avoids a separate
-decompression step.
+## Script — `msconvert.sh`
 
 ```bash
 #!/usr/bin/env bash
@@ -52,18 +42,18 @@ for raw in "$PLEX"/*.raw; do
     base=$(basename "$raw" .raw)
     out="$PLEX/$base.mzML"
     [ -s "$out" ] && { echo "SKIP $base"; continue; }
-    "$TRFP" -i="$raw" -o="$PLEX" -f=2 -l=3
+    "$TRFP" -i="$raw" -o="$PLEX" -f=2 -l=3      # f=2 plain mzML; no -g
     [ -s "$out" ] && echo "OK $base" || echo "FAIL $base"
 done
 ```
 
-Set `--array=1-N` where N is the number of plex folders (exclude `logs/`), then:
+Set `--array=1-N` to the number of plex folders (excluding `logs/`), then:
 
 ```bash
 sbatch msconvert.sh
 ```
 
-### Verify before deleting any raw
+## Verify before deleting any raw
 
 ```bash
 find $SPECTRA -name '*.mzML.gz' | wc -l        # expect 0
@@ -82,64 +72,18 @@ Once mzML and raw counts match:
 find $SPECTRA -name '*.raw' -delete
 ```
 
----
-
-## Step 2 — Run FragPipe (per plex)
-
-`run_plexes.py` builds a per-plex `.workflow` and `.fp-manifest`, then runs
-FragPipe headless. Per plex it injects `database.db-path`,
-`fragger.fragger-path`, and `tmtintegrator.channel_num`.
-
-> MSFragger is **not** discovered via `--config-tools-folder` and putting its jar
-> in `tools/` does nothing — its path must be set in each workflow via
-> `fragger.fragger-path`. Pass it with `--msfragger-path`. IonQuant only needs the
-> same treatment if a template sets `ionquant.run-ionquant=true`.
-
-```bash
-#!/usr/bin/env bash
-#SBATCH --job-name=fragpipe
-#SBATCH --partition=short
-#SBATCH --cpus-per-task=16
-#SBATCH --mem=64G
-#SBATCH --time=24:00:00
-#SBATCH --output=$OUT/logs/fp_%A_%a.out
-#SBATCH --error=$OUT/logs/fp_%A_%a.err
-set -euo pipefail
-export JAVA_HOME=$HOME/bin/jdk-17.0.18+8
-export PATH=$JAVA_HOME/bin:$PATH
-
-PLEX=$(sed -n "${SLURM_ARRAY_TASK_ID}p" $OUT/plex_list.txt)
-
-python3 $SCRIPTS/run_plexes.py \
-  --spectra-root   $SPECTRA \
-  --fasta-dir      $DEP/FASTA_fragpipe \
-  --template-dir   $SCRIPTS/templates \
-  --out-dir        $OUT \
-  --fragpipe-bin   /path/to/fragpipe-24.0/bin/fragpipe \
-  --tools-folder   /path/to/fragpipe-24.0/tools \
-  --msfragger-path /path/to/MSFragger-x.y.z.jar \
-  --only "$PLEX" --run
-```
-
-Test one plex, then run the full array:
-
-```bash
-sbatch --array=1-1 submit_fragpipe.sh
-sbatch --array=1-N submit_fragpipe.sh
-```
-
-`plex_list.txt`: one plex id per line, no `logs` entry.
-
----
-
 ## Notes
 
 - Keep mzML uncompressed (`-f=2`, no `-g`) — MSFragger can't read `.mzML.gz`.
 - Never delete `.raw` until mzML/raw counts match.
-- `logs/` lives under `$SPECTRA` but is not a plex — exclude it from any
-  directory-derived plex list, or array indexing will be off by one and the
-  last plex will be skipped.
-- Clear `results/<plex>/` (stale `.cal`/`.index`, prior `combined/`) before
-  re-running a plex.
+- `logs/` sits under `$SPECTRA` but isn't a plex — exclude it from any
+  directory-derived list, or array indexing is off by one and the last plex
+  is skipped.
+- If a prior run left gzipped/mislabeled output, normalize first:
+  ```bash
+  find $SPECTRA -name '*.mzML.gz' | while read -r f; do
+    file "$f" | grep -q 'gzip compressed' && gunzip "$f" || mv -- "$f" "${f%.gz}"
+  done
+  ```
 - mzML ≈ 1 GB/file — check `df -h /scratch` before bulk conversion.
 ```
