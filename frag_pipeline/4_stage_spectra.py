@@ -1,5 +1,20 @@
 #!/usr/bin/env python3
-"""stage_spectra.py — build one-folder-per-plex (symlinks) + annotation."""
+
+"""
+4_stage_spectra.py 
+
+Build one-folder-per-plex (symlinks) + annotation.
+
+Run after 3_gen_annotations.py
+
+Example usage: 
+python3 stage_spectra.py \
+  --raw-root     /scratch/maropakis.a/MQ_raw \
+  --annot-dir    /scratch/maropakis.a/Dependencies/annotations \
+  --spectra-root /scratch/maropakis.a/spectra
+
+"""
+
 import argparse, glob, os, shutil
 
 EXTS = (".raw", ".mzML", ".mzml")
@@ -58,9 +73,4 @@ def main():
 if __name__ == "__main__":
     main()
 
-""" 
-python3 stage_spectra.py \
-  --raw-root     /scratch/maropakis.a/MQ_raw \
-  --annot-dir    /scratch/maropakis.a/Dependencies/annotations \
-  --spectra-root /scratch/maropakis.a/spectra
-"""
+

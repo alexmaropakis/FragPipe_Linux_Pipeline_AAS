@@ -1,1 +1,0 @@
-python3 run_plexes.py --spectra-root /scratch/maropakis.a/spectra --fasta-dir /scratch/maropakis.a/Dependencies/FASTA_fragpipe --template-dir /home/maropakis.a/scripts/FragPipe/templates --out-dir /scratch/maropakis.a/Frag_outputs --fragpipe-bin /home/maropakis.a/fragpipe/fragpipe-24.0/bin/fragpipe --tools-folder /home/maropakis.a/fragpipe/fragpipe-24.0/tools

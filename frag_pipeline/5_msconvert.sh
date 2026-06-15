@@ -9,8 +9,9 @@
 set -uo pipefail
 
 TRFP=~/thermoRawFileParser/ThermoRawFileParser
-SPECTRA=/path/to/spectra
+SPECTRA=/scratch/maropakis.a/spectra
 
+cd TRFP 
 mapfile -t PLEXES < <(find "$SPECTRA" -mindepth 1 -maxdepth 1 -type d ! -name logs | sort)
 PLEX="${PLEXES[$((SLURM_ARRAY_TASK_ID - 1))]}"
 
@@ -24,3 +25,4 @@ for raw in "$PLEX"/*.raw; do
 done
 
 # Set `--array=1-N` to the number of plex folders (excluding `logs/`), then sbatch msconvert.sh
+# Example: sbatch --array=1-18 msconvert.sh

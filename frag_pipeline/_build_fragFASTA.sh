@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=mtp_pipeline
+#SBATCH --job-name=buildfragfasta
 #SBATCH --partition=short
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -9,28 +9,27 @@
 #SBATCH --output=/scratch/maropakis.a/Dependencies/logs/fragFASTA_pipeline_%j.out
 #SBATCH --error=/scratch/maropakis.a/Dependencies/logs/fragFASTA_pipeline_%j.err
 
+# Run when you're ready to build the FragPipe FASTA files
+
 set -euo pipefail
 
-export PATH=$HOME/bin/ncbi-blast-2.17.0+/bin:$PATH
-blastp -version
-
-cd "$SLURM_SUBMIT_DIR"          # run from the dir holding the .py scripts
+cd /home/maropakis.a/fragpipe # run from the dir holding the .py scripts
 DEP=/scratch/maropakis.a/Dependencies
 mkdir -p "$DEP/mtp_maps" "$DEP/FASTA_fragpipe"
 
-# --- Stage 1: blast MTPs -> per-species CSVs (query id = full header + TMT tag) ---
-python3 /home/maropakis.a/scripts/BLASTp/June26/FASTABLAST_mtps.py \
-  --mtp-dir    "$DEP/FASTA_appended/" \
-  --human-ref  "$DEP/FASTA/HUMAN.fasta" \
-  --mouse-ref  "$DEP/FASTA/MOUSE_UP000000589_10090.fasta" \
-  --out-dir    "$DEP/mtp_maps/" \
-  --threads "${SLURM_CPUS_PER_TASK}"
+# --- Stage 1: Generate per-species CSVs (query id = full header + TMT tag) ---
+  python3 1_PrepFasta.py \
+    --mtp-dir     /scratch/maropakis.a/Dependencies/FASTA_appended/ \
+    --human-root  /scratch/maropakis.a/MQ_outputs/Ping_2018 \
+    --human-root  /scratch/maropakis.a/MQ_outputs/Bai_2020 \
+    --mouse-root  /scratch/maropakis.a/MQ_outputs/Takasugi_2024 \
+    --out-dir     /scratch/maropakis.a/Dependencies/mtp_maps/
 
 # --- Stage 2: build FragPipe FASTAs from filtered CSVs ---
-python3 build_fragpipe_fasta.py \
+python3 2_buildFragFASTA.py \
   --mtp-dir   "$DEP/FASTA_appended/" \
-  --human-csv "$DEP/mtp_maps/human_filtered.csv" \
-  --mouse-csv "$DEP/mtp_maps/mouse_filtered.csv" \
+  --human-csv "$DEP/mtp_maps/human.csv" \
+  --mouse-csv "$DEP/mtp_maps/mouse.csv" \
   --out-dir   "$DEP/FASTA_fragpipe/"
 
 # --- Stage 3: sanity check — no duplicate headers in any FragPipe FASTA ---

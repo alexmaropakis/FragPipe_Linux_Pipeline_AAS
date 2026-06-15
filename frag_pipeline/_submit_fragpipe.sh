@@ -21,4 +21,4 @@ python3 /home/maropakis.a/scripts/FragPipe/run_plexes.py \
   --tools-folder /home/maropakis.a/fragpipe/fragpipe-24.0/tools \
   --only "$PLEX" --run
 
-# sbatch --array=1-18 submit_fragpipe.sh to run
+# Example to run: sbatch --array=1-18 7_submit_fragpipe.sh

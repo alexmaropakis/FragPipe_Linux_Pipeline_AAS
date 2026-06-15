@@ -1,4 +1,4 @@
-cat > submit_fragpipe.sh <<'EOF'
+cat > _submit_fragpipe.sh <<'EOF'
 #!/usr/bin/env bash
 #SBATCH --job-name=fragpipe
 #SBATCH --partition=short
@@ -7,7 +7,9 @@ cat > submit_fragpipe.sh <<'EOF'
 #SBATCH --time=24:00:00
 #SBATCH --output=/scratch/maropakis.a/Frag_outputs/logs/fp_%A_%a.out
 #SBATCH --error=/scratch/maropakis.a/Frag_outputs/logs/fp_%A_%a.err
+
 set -euo pipefail
+
 export JAVA_HOME=$HOME/bin/jdk-17.0.18+8
 export PATH=$JAVA_HOME/bin:$PATH
 
@@ -24,4 +26,4 @@ python3 /home/maropakis.a/scripts/FragPipe/run_plexes.py \
 EOF
 
 
-## paste this into terminal to generate submit_fragpipe.sh
+## paste this into terminal to generate _submit_fragpipe.sh

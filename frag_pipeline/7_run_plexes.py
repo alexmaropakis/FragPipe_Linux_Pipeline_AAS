@@ -1,9 +1,20 @@
 #!/usr/bin/env python3
 """
-run_plexes.py — per-plex FragPipe workflow + manifest, then headless run.
-Consumes stage_spectra.py output: each --spectra-root subfolder is one plex
+7_run_plexes.py 
+
+Per-plex FragPipe workflow + manifest, then headless run.
+Consumes 4_stage_spectra.py output: each --spectra-root subfolder is one plex
 (lowercase id) holding its spectra + annotation.txt. FASTAs matched
 case-insensitively from names like S3_Aorta_fragpipe.fasta.
+
+Example usage:
+python3 run_plexes.py --spectra-root /scratch/maropakis.a/spectra \
+    --fasta-dir /scratch/maropakis.a/Dependencies/FASTA_fragpipe \
+    --template-dir /home/maropakis.a/scripts/FragPipe/templates \
+    --out-dir /scratch/maropakis.a/Frag_outputs \
+    --fragpipe-bin /home/maropakis.a/fragpipe/fragpipe-24.0/bin/fragpipe \
+    --tools-folder /home/maropakis.a/fragpipe/fragpipe-24.0/tools
+
 """
 import argparse, glob, os, re, subprocess, sys
 
@@ -119,7 +130,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-"""
-python3 run_plexes.py --spectra-root /scratch/maropakis.a/spectra --fasta-dir /scratch/maropakis.a/Dependencies/FASTA_fragpipe --template-dir /home/maropakis.a/scripts/FragPipe/templates --out-dir /scratch/maropakis.a/Frag_outputs --fragpipe-bin /home/maropakis.a/fragpipe/fragpipe-24.0/bin/fragpipe --tools-folder /home/maropakis.a/fragpipe/fragpipe-24.0/tools
-"""
