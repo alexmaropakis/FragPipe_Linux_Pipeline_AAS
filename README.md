@@ -120,7 +120,7 @@ To generate the FragPipe FASTA copies, run ```1_PrepFASTA.py``` and ```2_genFrag
 - 2_buildFragFASTA.py -- Builds FragPipe-ready FASTAs from appended MTP FASTAs and the metadata tables generated in Step 1. Reference entries pass through unchanged. Kept MTP entries receive FragPipe-compatible headers and are added to the database. Reverse-sequence decoys are appended for every target entry.
 
 >[!WARNING]
-> This pipeline is optimized for the AAS Pipeline described in [Tsour et al., 2026](https://pubmed.ncbi.nlm.nih.gov/39253435/). If not intending to append custom peptides to the FASTA, skip ```1_PrepFASTA.py```. 
+> This pipeline is optimized for the AAS Pipeline described in [Tsour et al., 2026](https://pubmed.ncbi.nlm.nih.gov/39253435/). If not intending to append custom peptides to the FASTA, skip ```1_PrepFASTA.py``` and ```2_buildFragFASTA.py``` and just generate the FASTA file with decoys/contaminants in the FragPipe GUI. Then import the new FASTA file into your respective directory to run the rest of the pipeline. 
 
 Inputs from MaxQuant Dependent Peptide Search: 
 - evidence.txt
