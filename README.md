@@ -4,7 +4,7 @@
 
 This guide is targeted toward beginners planning to run FragPipe v24.0. It is optimized for [Northeastern University's Research Computing Cluster](https://rc.northeastern.edu/), which is hosted at the [Massachusetts Green High-Performance Computing Center (MGHPCC)](https://mghpcc.org/) in Holyoke, MA. It is particularly written to follow the AAS Pipeline defined in [Tsour et al., 2026](https://pubmed.ncbi.nlm.nih.gov/39253435/) and outlines a pipeline to generate FASTA files with custom peptides appended. 
 * If not intending to use these custom FASTA files, skip step 1 and go directly to step 2.
-* This pipeline is based off work done by Andrew Leduc, PhD at the Slavov Lab, located in [this repository](https://github.com/Andrew-Leduc/AAS_Evo). 
+* This pipeline is based off work done by Andrew Leduc, PhD at the Slavov Lab, located in [this repository](https://github.com/Andrew-Leduc/AAS_Evo), but optimized for my particular work on the AAS Project in the Slavov Lab. 
 
 **Last updated:** 06-15-2026
 
