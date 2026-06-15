@@ -41,7 +41,7 @@ FragPipe
 ## Repository Structure
 
 ```text
-FragPipe_Linux_Tutorial/
+FragPipe_Linux_Pipeline_AAS/
 
 ├── pipeline/
 │   ├── 1_PrepFASTA.py
