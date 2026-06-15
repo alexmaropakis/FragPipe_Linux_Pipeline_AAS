@@ -1,6 +1,8 @@
 # FragPipe in Linux Pipeline: a pipeline for running FragPipe in Linux (particularly for the Amino Acid Substitution Project)
 
-[FragPipe](https://fragpipe.nesvilab.org/) is a comprehensive computational platform designed to analyze mass spectrometry-based proteomics data. It is powered by [MSFragger](https://msfragger.nesvilab.org/), an ultrafast proteomic search engine for both closed and open (wide precursor mass tolerance) peptide identification. It includes Percolator and the [Philosopher](https://nesvilab.github.io/philosopher/) toolkit for downstream post-processing of MSFragger search results, FDR filtering, and multi-experiment summary report generation. It also includes the [MSBooster](https://www.nature.com/articles/s41467-023-40129-9) module for deep-learning based rescoring of peptide identifications, and [Crystal-C](https://www.nesvilab.org/Crystal-C/) and [PTM-shepherd](https://github.com/Nesvilab/PTM-Shepherd) to aid interpretation of results from "open" and "mass offset" searches for PTMs.
+[FragPipe](https://fragpipe.nesvilab.org/) is a comprehensive computational platform maintained by the [Nesvizhskii Lab](https://www.nesvilab.org/) to analyze mass spectrometry-based proteomics data. It is powered by [MSFragger](https://msfragger.nesvilab.org/), an ultrafast proteomic search engine for both closed and open (wide precursor mass tolerance) peptide identification. It includes Percolator and the [Philosopher](https://nesvilab.github.io/philosopher/) toolkit for downstream post-processing of MSFragger search results, FDR filtering, and multi-experiment summary report generation. It also includes the [MSBooster](https://www.nature.com/articles/s41467-023-40129-9) module for deep-learning based rescoring of peptide identifications, and [Crystal-C](https://www.nesvilab.org/Crystal-C/) and [PTM-shepherd](https://github.com/Nesvilab/PTM-Shepherd) to aid interpretation of results from "open" and "mass offset" searches for PTMs.
+
+See References below. 
 
 This guide is targeted toward beginners planning to run FragPipe v24.0. It is optimized for [Northeastern University's Research Computing Cluster](https://rc.northeastern.edu/), which is hosted at the [Massachusetts Green High-Performance Computing Center (MGHPCC)](https://mghpcc.org/) in Holyoke, MA. It is particularly written to follow the AAS Pipeline defined in [Tsour et al., 2026](https://pubmed.ncbi.nlm.nih.gov/39253435/) and outlines a pipeline to generate FASTA files with custom peptides appended. 
 * If not intending to use these custom FASTA files, skip step 1 and 2 and just generate the FASTA file + decoys in the FragPipe GUI.
@@ -242,4 +244,30 @@ python3 7_run_plexes.py --only acgb1 --run
 
 or ```sbatch _submit_fragpipe.sh```. 
 
-
+## Key References
+#### Database search
+Kong, A. T., Leprevost, F. V., Avtonomov, D. M., Mellacheruvu, D., & Nesvizhskii, A. I. (2017). MSFragger: ultrafast and comprehensive peptide identification in mass spectrometry–based proteomics. Nature Methods, 14(5), 513-520.
+Yu, F., Teo, G. C., Kong, A. T., Haynes, S. E., Avtonomov, D. M., Geiszler, D. J., & Nesvizhskii, A. I. (2020). Identification of modified peptides using localization-aware open search. Nature Communications, 11, 4065.
+Yu, F., Haynes, S. E., Teo, G. C., Avtonomov, D. M., Polasky, D. A., & Nesvizhskii, A. I. (2020). Fast quantitative analysis of timsTOF PASEF data with MSFragger and IonQuant. Molecular & Cellular Proteomics, 10(9), 1575-1585.
+Teo, G. C., Polasky, D. A., Yu, F., Nesvizhskii, A. I. (2020). A fast deisotoping algorithm and its implementation in the MSFragger search engine. Journal of Proteome Research, 20(1), 498-505.
+#### Chimeric spectra search
+Yu, F., Deng, Y. & Nesvizhskii, A.I. (2025). MSFragger-DDA+ enhances peptide identification sensitivity with full isolation window search. Nature Communications, 16, 3329.
+Glyco/Labile search
+Polasky, D. A., Yu, F., Teo, G. C., & Nesvizhskii, A. I. (2020). Fast and Comprehensive N-and O-glycoproteomics analysis with MSFragger-Glyco. Nature Methods, 17, 1125-1132.
+Polasky, D. A., Geiszler, D. J., Yu, F., & Nesvizhskii, A. I. (2022). Multiattribute Glycan Identification and FDR Control for Glycoproteomics. Molecular & Cellular Proteomics, 21(3), 100205.
+Polasky, D. A., Geiszler, D. J., Yu, F., Kai, Li., Teo, G. C., & Nesvizhskii, A. I. (2023). MSFragger-Labile: A Flexible Method to Improve Labile PTM Analysis in Proteomics. Molecular & Cellular Proteomics, 22(5), 100538.
+Polasky, D. A., Lu, L., Yu, F., Li, K., Shortreed, M. R., Smith, L. M., & Nesvizhskii, A. I. (2025). Quantitative proteome-wide O-glycoproteomics analysis with FragPipe. Analytical and Bioanalytical Chemistry, 417(5), 921-930.
+#### PTM
+Chang, H. Y., Kong, A. T., da Veiga Leprevost, F., Avtonomov, D. M., Haynes, S. E., & Nesvizhskii, A. I. (2020). Crystal-C: A computational tool for refinement of open search results. Journal of Proteome Research, 19(6), 2511-2515.
+Geiszler, D. J., Kong, A. T., Avtonomov, D. M., Yu, F., da Veiga Leprevost, F., & Nesvizhskii, A. I. (2020). PTM-Shepherd: analysis and summarization of post-translational and chemical modifications from open search results. Molecular & Cellular Proteomics, 20, 100018.
+Geiszler, D. J., Polasky, D. A., Yu, F., & Nesvizhskii, A. I. (2023). Detecting diagnostic features in MS/MS spectra of post-translationally modified peptides. Nature Communications, 14, 4132.
+#### DIA
+Tsou, C. C., Avtonomov, D., Larsen, B., Tucholska, M., Choi, H., Gingras, A. C., & Nesvizhskii, A. I. (2015). DIA-Umpire: comprehensive computational framework for data-independent acquisition proteomics. Nature methods, 12(3), 258-264.
+Yu, F, Teo, G. C., Kong, A. T., Fröhlich, K., Li, G. X. , Demichev, V, Nesvizhskii, A..I. (2023). Analysis of DIA proteomics data using MSFragger-DIA and FragPipe computational platform, Nature Communications 14, 4154.
+#### DIA-PASEF
+Li, K., Teo, G. C., Yang, K. L., Yu, F., & Nesvizhskii, A. I. (2025). diaTracer enables spectrum-centric analysis of diaPASEF proteomics data. Nature Communications, 16, 95.
+#### DDA quantification
+Yu, F., Haynes, S. E., & Nesvizhskii, A. I. (2021). IonQuant enables accurate and sensitive label-free quantification with FDR-controlled match-between-runs. Molecular & Cellular Proteomics, 20, 100077.
+#### Miscellaneous
+da Veiga Leprevost, F., Haynes, S. E., Avtonomov, D. M., Chang, H. Y., Shanmugam, A. K., Mellacheruvu, D., Kong, A. T., & Nesvizhskii, A. I. (2020). Philosopher: a versatile toolkit for shotgun proteomics data analysis. Nature Methods, 17(9), 869-870.
+Yang, K. L., Yu, F., Teo, G. C., Kai, L., Demichev, V., Ralser, M., & Nesvizhskii, A. I. (2023). MSBooster: improving peptide identification rates using deep learning-based features. Nature Communications, 14, 4539.
