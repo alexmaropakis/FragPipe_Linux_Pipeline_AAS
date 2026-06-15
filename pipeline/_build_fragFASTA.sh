@@ -13,12 +13,12 @@
 
 set -euo pipefail
 
-cd /home/maropakis.a/fragpipe # run from the dir holding the .py scripts
+cd /home/maropakis.a/scripts/FragPipe # run from the dir holding the .py scripts
 DEP=/scratch/maropakis.a/Dependencies
 mkdir -p "$DEP/mtp_maps" "$DEP/FASTA_fragpipe"
 
 # --- Stage 1: Generate per-species CSVs (query id = full header + TMT tag) ---
-  python3 1_PrepFasta.py \
+  python3 1_PrepFASTA.py \
     --mtp-dir     /scratch/maropakis.a/Dependencies/FASTA_appended/ \
     --human-root  /scratch/maropakis.a/MQ_outputs/Ping_2018 \
     --human-root  /scratch/maropakis.a/MQ_outputs/Bai_2020 \
