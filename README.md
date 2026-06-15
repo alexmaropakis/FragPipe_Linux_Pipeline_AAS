@@ -1,9 +1,9 @@
-# FragPipe_Linux_Tutorial: An updated guide for running FragPipe in Linux.
+# FragPipe in Linux Pipeline: a pipeline for running FragPipe in Linux (particularly for the Amino Acid Substitution Project)
 
 [FragPipe](https://fragpipe.nesvilab.org/) is a comprehensive computational platform designed to analyze mass spectrometry-based proteomics data. It is powered by [MSFragger](https://msfragger.nesvilab.org/), an ultrafast proteomic search engine for both closed and open (wide precursor mass tolerance) peptide identification. It includes Percolator and the [Philosopher](https://nesvilab.github.io/philosopher/) toolkit for downstream post-processing of MSFragger search results, FDR filtering, and multi-experiment summary report generation. It also includes the [MSBooster](https://www.nature.com/articles/s41467-023-40129-9) module for deep-learning based rescoring of peptide identifications, and [Crystal-C](https://www.nesvilab.org/Crystal-C/) and [PTM-shepherd](https://github.com/Nesvilab/PTM-Shepherd) to aid interpretation of results from "open" and "mass offset" searches for PTMs.
 
 This guide is targeted toward beginners planning to run FragPipe v24.0. It is optimized for [Northeastern University's Research Computing Cluster](https://rc.northeastern.edu/), which is hosted at the [Massachusetts Green High-Performance Computing Center (MGHPCC)](https://mghpcc.org/) in Holyoke, MA. It is particularly written to follow the AAS Pipeline defined in [Tsour et al., 2026](https://pubmed.ncbi.nlm.nih.gov/39253435/) and outlines a pipeline to generate FASTA files with custom peptides appended. 
-* If not intending to use these custom FASTA files, skip step 1 and go directly to step 2.
+* If not intending to use these custom FASTA files, skip step 1 and 2 and just generate the FASTA file + decoys in the FragPipe GUI.
 * This pipeline is based off work done by Andrew Leduc, PhD at the Slavov Lab, located in [this repository](https://github.com/Andrew-Leduc/AAS_Evo), but optimized for my particular work on the AAS Project in the Slavov Lab. 
 
 **Last updated:** 06-15-2026
