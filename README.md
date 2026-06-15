@@ -54,9 +54,10 @@ FragPipe_Linux_Pipeline_AAS/
 │   ├── _build_fragFASTA.sh
 │   └── _submit_fragpipe.sh
 │
-├── workflow_templates/
-│   ├── TMT10_MS3_Val.workflow
-│   └── TMT16_Val.workflow
+├── templates/
+│   ├── TMT10_MS3_Val.workflow [coming soon]
+│   └── TMT16_Val.workflow [coming soon]
+│   └── sample_map_acgb1.xlsx
 │
 └── README.md
 ```
