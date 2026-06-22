@@ -13,12 +13,14 @@ python3 run_plexes.py --spectra-root /scratch/maropakis.a/spectra \
     --template-dir /home/maropakis.a/scripts/FragPipe/templates \
     --out-dir /scratch/maropakis.a/Frag_outputs \
     --fragpipe-bin /home/maropakis.a/fragpipe/fragpipe-24.0/bin/fragpipe \
-    --tools-folder /home/maropakis.a/fragpipe/fragpipe-24.0/tools
+    --tools-folder /home/maropakis.a/fragpipe/fragpipe-24.0/tools \
+    --spectra-ext .mzML
+
+FIXED BUG 06-22-2026: Requires file extension input to prevent cross-talk between .raw and .mzML files in the same folder
 
 """
 import argparse, glob, os, re, subprocess, sys
 
-EXTS = (".raw", ".mzML", ".mzml")
 EXPECTED = {"TMT-10": 10, "TMT-11": 11, "TMT-16": 16}
 
 
@@ -62,6 +64,8 @@ def main():
     ap.add_argument("--threads", type=int, default=16)
     ap.add_argument("--ram", type=int, default=64)
     ap.add_argument("--only", default=None, help="run just this one plex")
+    ap.add_argument("--spectra-ext", default=".mzML",
+                    help="spectra file extension to use (e.g. .raw or .mzML)")
     ap.add_argument("--run", action="store_true", help="execute (default: print only)")
     a = ap.parse_args()
 
@@ -86,7 +90,7 @@ def main():
         fasta = fasta_idx.get(plex)
         annot = os.path.join(plex_dir, "annotation.txt")
         spectra = sorted(p for p in glob.glob(os.path.join(plex_dir, "*"))
-                         if p.endswith(EXTS))
+                         if p.lower().endswith(a.spectra_ext.lower()))
 
         missing = [n for n, ok in [("FASTA", bool(fasta)),
                                    ("annotation.txt", os.path.isfile(annot)),
