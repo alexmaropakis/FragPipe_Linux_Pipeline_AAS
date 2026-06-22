@@ -8,7 +8,7 @@ This guide is targeted toward beginners planning to run FragPipe v24.0. It is op
 * If not intending to use these custom FASTA files, skip step 1 and 2 and just generate the FASTA file + decoys in the FragPipe GUI.
 * This pipeline is based off work done by Andrew Leduc, PhD at the Slavov Lab, located in [this repository](https://github.com/Andrew-Leduc/AAS_Evo), but optimized for my particular work on the AAS Project in the Slavov Lab. 
 
-**Last updated:** 06-15-2026
+**Last updated:** 06-22-2026
 
 ## Overview
 This repository automates preparation and execution of FragPipe searches, including:
