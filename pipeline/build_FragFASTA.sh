@@ -6,14 +6,14 @@
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=32G
 #SBATCH --time=02:00:00
-#SBATCH --output=/scratch/maropakis.a/Dependencies/logs/fragFASTA_pipeline_%j.out
-#SBATCH --error=/scratch/maropakis.a/Dependencies/logs/fragFASTA_pipeline_%j.err
+#SBATCH --output=/scratch/maropakis.a/Dependencies/Frag_outputs/logs/fragFASTA_pipeline_%j.out
+#SBATCH --error=/scratch/maropakis.a/Dependencies/Frag_outputs/logs/fragFASTA_pipeline_%j.err
 
 # Run when you're ready to build the FragPipe FASTA files
 
 set -euo pipefail
 
-cd /home/maropakis.a/scripts/FragPipe # run from the dir holding the .py scripts
+cd /home/maropakis.a/scripts/search_gen/ # run from the dir holding the .py scripts
 DEP=/scratch/maropakis.a/Dependencies
 mkdir -p "$DEP/mtp_maps" "$DEP/FASTA_fragpipe"
 
@@ -25,12 +25,12 @@ mkdir -p "$DEP/mtp_maps" "$DEP/FASTA_fragpipe"
     --mouse-root  /scratch/maropakis.a/MQ_outputs/Takasugi_2024 \
     --out-dir     /scratch/maropakis.a/Dependencies/mtp_maps/
 
-# --- Stage 2: build FragPipe FASTAs from filtered CSVs ---
+# --- Stage 2: build per-plex FragPipe FASTAs from the per-plex CSVs ---
+# each *_MTP.fasta uses ONLY its own {token}.csv; no cross-plex keep-set sharing
 python3 2_buildFragFASTA.py \
-  --mtp-dir   "$DEP/FASTA_appended/" \
-  --human-csv "$DEP/mtp_maps/human.csv" \
-  --mouse-csv "$DEP/mtp_maps/mouse.csv" \
-  --out-dir   "$DEP/FASTA_fragpipe/"
+  --mtp-dir "$DEP/FASTA_appended/" \
+  --csv-dir "$DEP/mtp_maps/" \
+  --out-dir "$DEP/FASTA_fragpipe/"
 
 # --- Stage 3: sanity check — no duplicate headers in any FragPipe FASTA ---
 fail=0
