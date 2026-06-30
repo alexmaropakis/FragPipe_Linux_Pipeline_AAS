@@ -1,122 +1,125 @@
-# BrainDecode FASTA / Plex-Prep Pipeline
+# Per-Plex FragPipe FASTA Pipeline
 
-Builds per-plex, FragPipe-ready FASTAs (reference + MTP entries + reversed decoys) from
-MaxQuant DP-search evidence, then preps each TMT plex for a FragPipe headless search.
+A two-stage pipeline that builds **per-batch, search-engine-ready FASTAs** containing a set of
+"target" sequences of interest (e.g. variant/modified peptides) plus their reference proteome,
+resolved strictly against each batch's own upstream search evidence — then hands the result off
+to a per-batch FragPipe (or similar) search.
 
-Two stages, run in order:
+This README describes the general pattern so it can be adapted to a different proteomics
+project, target-sequence type, or search engine. The original implementation was built for
+TMT-plex mistranslated-peptide (MTP/SAAP) detection, but the architecture generalizes to any
+"set of candidate sequences that need per-batch provenance resolution before being added to a
+search database."
 
-1. **`1_PrepFASTA.py`** — resolve each MTP (mistranslated peptide) to a base-peptide accession,
-   strictly within its own plex's MaxQuant DP evidence. Emits one CSV per plex.
-2. **`2_buildFragFASTA.py`** — use those per-plex CSVs to filter the appended `*_MTP.fasta`
-   files into FragPipe-safe FASTAs with Philosopher-compatible headers and decoys.
+## What problem this solves
 
-`build_FragFASTA.sh` runs both stages plus a duplicate-header sanity check. `run_all_plexes.sh`
-is a separate, downstream script that takes the finished FragPipe FASTAs and generates the
-per-plex FragPipe workflow/manifest/submit scripts for every TMT plex across all datasets.
+If you have:
+- multiple independent acquisition batches (plexes, runs, samples — whatever your unit of
+  analysis is), each searched separately upstream, and
+- a list of candidate/non-standard sequences (variants, modified peptides, novel ORFs, etc.)
+  that need to be matched back to a parent/reference identity using **only that batch's own**
+  upstream evidence,
 
-## Core principle: strict per-plex resolution
+...then pooling all batches together to resolve those candidates is a correctness bug: a
+candidate seen in batch A should never be resolved using evidence from batch B, even if the
+same sequence appears in both. This pipeline enforces that boundary structurally, not just by
+convention.
 
-Every plex (TMT batch / tissue) is resolved **only** against its own MaxQuant DP
-`combined/txt` evidence. An MTP sequence seen in multiple plexes is never pooled — it's
-resolved independently in each plex and written to that plex's own CSV. This was a prior bug
-(cross-plex pooling produced incorrect on-disk FASTAs) and is now enforced end-to-end:
-a filename matching zero or more than one DP dir is a hard error, not a silent fallback.
-
-## Stage 1 — `1_PrepFASTA.py`
-
-For each `*_MTP.fasta` in `--mtp-dir`:
-
-- Derives a **plex token** from the filename (`S1_ACGB1_MTP.fasta` → `acgb1`).
-- Matches that token to exactly one `*_DP/combined/txt/` directory found by walking the
-  `--human-root` / `--mouse-root` paths (species comes from which root flag found the dir —
-  adding a dataset means passing its root, no token rule to edit).
-- For each MTP sequence, finds same-length `evidence.txt` peptides differing at exactly one
-  residue (`find_base_peptides`), then resolves the first candidate with a real UniProt
-  accession (`MTP|` entries excluded) via `proteinGroups.txt` → `(accession, gene, description)`.
-- Writes one CSV per plex, `{token}.csv`, with columns:
-  `sequence, species, accession, gene, description, bp_seq, all_accessions, status, n_base_candidates`
-  (`status` = `keep` or `unresolved`).
-
-**Token disambiguation:** tissue names repeat across studies (e.g. Takasugi kidney vs. Keele
-kidney). Datasets listed in `DATASET_SUFFIX` (currently `keele2025`→`keele`,
-`tsumagari_2023`→`tsumagari`) get a dataset suffix appended to their token
-(`kidney`→`kidney_keele`, `cortex_1`→`cortex_1_tsumagari`). Datasets with globally-unique
-plex names (Ping ACG/FC, Bai pooled, Takasugi tissues) keep the bare token. Adding a new
-disambiguated dataset = one entry in `DATASET_SUFFIX`.
+## Pipeline shape
 
 ```
-python3 1_PrepFASTA.py \
-  --mtp-dir     /scratch/maropakis.a/Dependencies/FASTA_appended/ \
-  --human-root  /scratch/maropakis.a/MQ_outputs/Ping_2018 \
-  --human-root  /scratch/maropakis.a/MQ_outputs/Bai_2020 \
-  --mouse-root  /scratch/maropakis.a/MQ_outputs/Takasugi_2024 \
-  --mouse-root  /scratch/maropakis.a/MQ_outputs/Keele_2025 \
-  --mouse-root  /scratch/maropakis.a/MQ_outputs/Tsumagari_2023 \
-  --out-dir     /scratch/maropakis.a/Dependencies/mtp_maps/
+Stage 1 (resolve)        Stage 2 (build)              Stage 3 (search)
+candidate seqs    --->   per-batch CSV     --->        per-batch FASTA   --->   per-batch search
++ per-batch            (sequence -> parent           (filtered + decoy-          job (your engine)
+upstream evidence       accession/gene/desc)           appended, search-
+                                                        engine-safe headers)
 ```
 
-## Stage 2 — `2_buildFragFASTA.py`
+| Generic step | Original filenames | Purpose |
+|---|---|---|
+| Stage 1 — resolve | `1_PrepFASTA.py` | Per batch: match each candidate sequence to a parent identity using only that batch's own upstream evidence. Emit one CSV per batch. |
+| Stage 2 — build | `2_buildFragFASTA.py` | Per batch: filter the candidate FASTA down to "resolved" entries using that batch's CSV, rewrite headers to be search-engine-safe, append decoys. |
+| Driver | `build_FragFASTA.sh` | Runs Stage 1 → Stage 2 → a sanity check (e.g. no duplicate headers) as one SLURM/batch job. |
+| Downstream orchestration | `run_all_plexes.sh` | The single place that enumerates every batch and kicks off its actual search job using the Stage-2 FASTA. |
 
-For each `*_MTP.fasta`, loads its matching `{token}.csv` (same token logic as Stage 1) and
-keeps only MTP entries with `status == keep`:
+## Core design principles (keep these when adapting)
 
-- Reference entries pass through unchanged.
-- Kept MTP entries get a Philosopher-safe mock-UniProt header:
-  `>sp|{accession}-{MTPid}-{token}|{gene}-mut {gene} mistranslated {MTPid} OS=... OX=... GN={gene} PE=1 SV=1`.
-  The accession is de-duplicated per file (`-d2`, `-d3`, ...) if it collides.
-- `OS=`/`OX=` species tag is read from the CSV's `species` column — never guessed from the
-  filename, so new datasets need no code change here.
-- Reversed (`rev_`) decoys are appended for **every** target, including MTPs.
+1. **Strict per-batch resolution, no pooling.** Each batch's candidates are resolved only
+   against that batch's own evidence directory. A batch whose token matches zero or more than
+   one evidence directory should be a hard error, not a silent best-guess — misrouted evidence
+   is worse than a crashed job.
+2. **A single token scheme ties everything together.** One filename → token function (e.g.
+   "strip known prefix/suffix, lowercase") is used to match: candidate-sequence files ↔
+   evidence directories ↔ per-batch CSVs ↔ output FASTAs. Keep this logic in exactly one place
+   per stage and make Stage 2 reuse Stage 1's token function (or an identical copy) — drift
+   between the two is a common source of "silently dropped batch" bugs.
+3. **Disambiguate collisions explicitly, don't guess.** If your batch/sample names repeat
+   across source datasets or experiments (e.g. the same tissue name used in two different
+   studies), keep an explicit lookup table (dataset → suffix) rather than relying on directory
+   structure alone. Adding a new ambiguous dataset should be a one-line addition to that table.
+4. **Species/condition/other metadata travels with the row, not the filename.** Anything Stage
+   2 needs (species, tag, group) should be read from the per-batch CSV that Stage 1 wrote, not
+   re-derived from the filename — that way Stage 2 needs zero edits when a new dataset is added.
+5. **Decoys and header format match your search engine's parser exactly.** Search engines like
+   Philosopher/MSFragger are strict and silently drop malformed entries rather than erroring —
+   know your engine's required header format and accession-uniqueness rules before writing
+   Stage 2, and add a uniqueness pass for accessions if a candidate ID could repeat.
+6. **Loud failure over silent fallback.** Missing CSV, missing evidence directory, ambiguous
+   token, duplicate headers — all of these should stop the pipeline with a clear error, since
+   the cost of a silently wrong FASTA (wrong evidence used) is much higher than a failed job.
 
-Header parsing note: the real MTP FASTA header is `>MTP|7998_0_base...` — the id regex is
-`MTP\|(\d+)`, not `MTP\d+`, otherwise distinct MTPs collide once written to Philosopher.
+## Adapting this pipeline to your own project
 
-```
-python3 2_buildFragFASTA.py \
-  --mtp-dir /scratch/maropakis.a/Dependencies/FASTA_appended/ \
-  --csv-dir /scratch/maropakis.a/Dependencies/mtp_maps/ \
-  --out-dir /scratch/maropakis.a/Dependencies/FASTA_fragpipe/
-```
+Work through these in order — most of the actual code (the matching, CSV I/O, decoy logic) can
+stay close to the original; what changes is the small set of project-specific definitions.
 
-## Driver — `build_FragFASTA.sh`
+### 1. Define your "batch" and your "candidate sequence"
+What's your independent resolution unit (plex, run, sample, patient)? What's the list of
+non-standard sequences you need to resolve (variant peptides, isoforms, novel transcripts)?
+This determines what Stage 1 reads as input.
 
-SLURM `sbatch` script (`short` partition, 16 cpus, 32G, 2h). Runs Stage 1 → Stage 2 → a
-duplicate-header sanity check over every `*_fragpipe.fasta` in the output dir, and exits
-non-zero if any duplicates are found.
+### 2. Define your token function
+Write one function that turns a candidate-file name into a canonical batch token, and a second
+that turns an evidence-directory name into the same token space. These must agree by
+construction — test them against a few real filenames before running anything else.
 
-```
-sbatch build_FragFASTA.sh
-```
+### 3. Define your disambiguation table
+If two different source datasets can produce the same bare token (e.g. same tissue/sample name
+used twice), add an explicit `DATASET_SUFFIX`-style dict keyed on dataset name. Don't try to
+infer disambiguation from path depth or ordering — it's fragile.
 
-> Note: this script `cd`s to `/home/maropakis.a/scripts/search_gen/` before invoking
-> `1_PrepFASTA.py` / `2_buildFragFASTA.py` by relative path — confirm both scripts actually
-> live in `search_gen/` (vs. directly under `scripts/`) before submitting.
+### 4. Point Stage 1 at your upstream search evidence format
+The original reads MaxQuant `evidence.txt` (sequence → protein string) and `proteinGroups.txt`
+(accession → gene/description via `Fasta headers`). If your upstream engine is different
+(e.g. FragPipe `psm.tsv`, Comet/Percolator output, a custom search), swap in the equivalent
+sequence→parent-protein and accession→gene/description lookups, but keep the per-batch
+indexing (`{token: evidence_dir}`) and per-batch column schema (`sequence, accession, gene,
+description, status, ...`) the same shape so Stage 2 doesn't need to change.
 
-## Downstream — `run_all_plexes.sh`
+### 5. Define your candidate→parent matching rule
+The original matches by "same length, exactly one residue different" (a single amino-acid
+substitution). Replace this with whatever matching rule fits your candidate type — e.g. exact
+substring, edit distance ≤ k, shared peptide backbone with a PTM mass offset, etc. Keep it
+isolated in one function so it's easy to swap.
 
-Separate SLURM script; the single place listing every TMT plex across all datasets. For each
-plex it calls `gen_fragpipe_plex.py` (`Alex_gen_fragpipe.py` at
-`/home/maropakis.a/scripts/search_gen/`) to stage raw→mzML conversion, spectra, and write a
-per-plex FragPipe workflow + manifest + `submit_<plex>.sh`. Channel count is auto-derived from
-each sample map.
+### 6. Define your header rewrite and decoy convention
+Write the mock header format your search engine expects, and decide whether decoys are
+reversed, shuffled, or generated by your engine itself (in which case Stage 2 may not need to
+add them at all — check whether your search engine's own decoy generation is being used
+downstream, in which case appending decoys yourself causes double-decoying).
 
-- **Live now:** Ping_2018 (10 plexes, TMT10 MS3) and Bai_2020 (pooled, TMT10 MS2), Takasugi_2024
-  (8 tissues, TMT16 MS2).
-- **Commented out / blocked on TODOs:** Keele_2025 and Tsumagari_2023 — need real acquisition
-  workflow templates (`TODO_KEELE.workflow`, `TODO_TSUMAGARI.workflow`) and their FragPipe
-  FASTAs built via Stages 1–2 first.
-- **Excluded entirely** (different, DIA pipeline): `PD_2026`, `Giansanti_2022`.
+### 7. Write your driver and orchestration scripts last
+Once Stages 1–2 work for one batch end-to-end, write the `build_*.sh` driver (resolve → build →
+sanity check) and the `run_all_*.sh` enumeration script (one line per batch, pointing at the
+finished FASTA + your search engine's workflow/config for that batch type). Keep the
+"add a dataset" instructions co-located in a comment block at the top of the enumeration script
+— it's the part that changes most often.
 
-```
-sbatch run_all_plexes.sh
-for s in /scratch/maropakis.a/Frag_outputs/submit/submit_*.sh; do sbatch "$s"; done
-```
+## Suggested sanity checks to keep regardless of project
 
-## Adding a new TMT dataset
-
-1. Place its `*_MTP.fasta` in `FASTA_appended/`, named `S?_<token>_MTP.fasta`.
-2. If its plex/tissue names collide with an existing dataset, add a `DATASET_SUFFIX` entry in
-   `1_PrepFASTA.py`.
-3. Pass its MaxQuant DP root via `--human-root`/`--mouse-root` and rerun `build_FragFASTA.sh`.
-4. Add one `gen` line per plex to `run_all_plexes.sh`, pointing at the dataset's real
-   acquisition workflow template and sample map.
+- No duplicate headers in any output FASTA (a duplicate accession will cause silent collapses
+  or ambiguous PSM assignment downstream).
+- Every batch's candidate file matches **exactly one** evidence directory — zero or multiple
+  matches should hard-fail.
+- Spot-check that `status=keep` counts look reasonable per batch (a batch resolving 0% or 100%
+  of candidates usually means a token mismatch, not a biological result).
