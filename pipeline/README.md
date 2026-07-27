@@ -1,19 +1,5 @@
 # pipeline/
 
-![Python](https://img.shields.io/badge/Python-3-3776AB?style=flat-square&logo=python&logoColor=white)
-![FragPipe](https://img.shields.io/badge/FragPipe-24.0-6E44FF?style=flat-square)
-![Scheduler](https://img.shields.io/badge/scheduler-SLURM-00838F?style=flat-square)
-![Labelling](https://img.shields.io/badge/TMT-10%20%7C%2011%20%7C%2016-F9A825?style=flat-square)
-![Modes](https://img.shields.io/badge/modes-per--plex%20%7C%20experiment--level-2E7D32?style=flat-square)
-
-The scripts that turn raw TMT data into finished FragPipe searches. Three search modes plus
-the shared setup tools they all depend on.
-
-Everything here assumes the per-plex FragPipe FASTAs already exist — build those first with
-`utility/` (see below).
-
-## Layout
-
 | Directory | What it does |
 |---|---|
 | `utility/` | Shared setup, run before anything else: build the per-plex FragPipe FASTAs (`prepFASTA.py` → `buildFragFASTA.py`) and, optionally, pre-convert raw → mzML (`msconvert.py`). |
