@@ -1,5 +1,13 @@
 # Per-Plex FragPipe FASTA Pipeline
 
+![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)
+![Python](https://img.shields.io/badge/Python-3-3776AB?style=flat-square&logo=python&logoColor=white)
+![FragPipe](https://img.shields.io/badge/FragPipe-24.0-6E44FF?style=flat-square)
+![Java](https://img.shields.io/badge/JDK-17-007396?style=flat-square&logo=openjdk&logoColor=white)
+![Scheduler](https://img.shields.io/badge/scheduler-SLURM-00838F?style=flat-square)
+![Platform](https://img.shields.io/badge/platform-Linux-333333?style=flat-square&logo=linux&logoColor=white)
+![Labelling](https://img.shields.io/badge/TMT-10%20%7C%2011%20%7C%2016-F9A825?style=flat-square)
+
 A two-stage pipeline that builds **per-batch, search-engine-ready FASTAs** containing a set of
 "target" sequences of interest (e.g. variant/modified peptides) plus their reference proteome,
 resolved strictly against each batch's own upstream search evidence — then hands the result off
