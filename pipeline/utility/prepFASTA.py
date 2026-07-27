@@ -1,42 +1,24 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3 
+
 """
-1_PrepFASTA.py
+Script to create per-plex .csv files for buildFragFASTA.py and build correct headers for SAAPs. 
 
-Create per-plex .csv files for 2_buildFragFASTA.py and build correct headers for MTPs.
+Requires having ran scripts SAAP_Detection & Validation1 from the Decode pipeline in Tsour et al., Nature 2026 
 
-SAAP list is the appended *_MTP.fasta, parent proteins are derived from MaxQuant DP search
-txt outputs:
-    BP_seq - evidence.txt --> 'Proteins'
-    --> accession - proteinGroups.txt 'Fasta headers' (GN=)
-    --> gene, description
+Inputs: 
+    *_MTP.fasta - reference FASTA with substituted sequences appended
+    
+    From MaxQuant Dependent Peptide Search:
+        evidence.txt - used for 'Proteins'
+        proteinGroups.txt - used for protein accessions, genes, and descriptions 
 
-*_MTP.fasta only has the peptide sequence, but BP is normal MQ identification, so it appears
-in the 'Sequence' row; each MTP is matched to its BP by a single-residue difference (same length,
-one mismatch) within the indexed evidence seqs, then resolved as above.
+Outputs:
+    {token}.csv - plex-level .csv file schematicized for buildFragFASTA.py:
+        sequence (SAAP), accession, gene, description, bp_seq, all_accessions, status, n_base_candidates 
 
-STRICT PER-PLEX RESOLUTION. Each *_MTP.fasta is one plex/tissue and is resolved ONLY against that
-plex's own DP combined/txt evidence. There is NO crossing: an MTP sequence seen in multiple plexes
-is resolved independently in each plex against that plex's evidence, and written into that plex's
-own CSV. The FragPipe FASTAs built downstream are therefore plex-specific.
-
-Matching: each MTP file and each DP txt dir collapse to the same token (plex/tissue, lowercased,
-non-alphanumerics stripped), e.g. S1_ACGB1_MTP.fasta -> 'acgb1' <-> Ping2018_ACG_B1_DP -> 'acgb1';
-S1_Pooled_MTP.fasta -> 'pooled' <-> Bai_2020_Pooled_DP. Only DP dirs are used (Val excluded).
-A file matching zero or >1 DP dir is a hard error rather than a silent mis-resolution.
-
-Every MTP whose base peptide resolves to a real accession (within its own plex) is kept
-(status='keep'); the rest are 'unresolved'.
-
-Emits one CSV per plex, named '{token}.csv', with the schema 2_buildFragFASTA.py consumes:
-    sequence , accession , gene , description , bp_seq , all_accessions , status , n_base_candidates
-  - `sequence` is the MTP peptide (2_buildFragFASTA.py keys keep[seq] on it, per plex)
-
-Species routing (ACG/FC/POOLED -> human; else mouse) only selects which root set provides the DP
-dirs; it does NOT pool plexes. Each plex still resolves against only its own DP dir.
-
+        
 Example usage:
--------
-  python3 1_PrepFASTA.py \
+  python prepFASTA.py \
     --mtp-dir     /scratch/maropakis.a/Dependencies/FASTA_appended/ \
     --human-root  /scratch/maropakis.a/MQ_outputs/Ping_2018 \
     --human-root  /scratch/maropakis.a/MQ_outputs/Bai_2020 \
@@ -45,14 +27,6 @@ Example usage:
     --mouse-root  /scratch/maropakis.a/MQ_outputs/Tsumagari_2023 \
     --out-dir     /scratch/maropakis.a/Dependencies/mtp_maps/
 
-Token disambiguation: tissue names repeat across studies (Takasugi kidney vs Keele kidney; Keele
-cortex vs Tsumagari cortex), so datasets listed in DATASET_SUFFIX get a dataset suffix in their
-token (Keele kidney -> 'kidney_keele', Tsumagari cortex rep1 -> 'cortex_1_tsumagari'). Datasets
-with globally-unique plex names (Ping ACG/FC, Bai pooled, Takasugi tissues) keep the bare token.
-To add a disambiguated dataset, add one entry to DATASET_SUFFIX below.
-
-Each root is walked recursively for every <...>_DP/combined/txt/ dir holding
-evidence.txt + proteinGroups.txt. The DP dir bound to each MTP file is decided by token match.
 """
 
 import argparse
@@ -61,47 +35,37 @@ import os
 import re
 from collections import defaultdict
 
-## header parsers
+# Header parsers 
 HDR_RE = re.compile(r'(?:sp|tr)\|([^|]+)\|\S+\s+(.+?)\s+OS=')
 GN_RE  = re.compile(r'GN=(\S+)')
 
-## Helper functions
-def mtp_token(filename):
-    """S1_ACGB1_MTP.fasta -> 'acgb1' ; S9_cortex_keele_MTP.fasta -> 'cortex_keele'.
+# Helper functions
+def plex_token(filename): 
+    # Function to pull token from *_MTP.fasta file name 
+    # e.g. S1_ACGB1_MTP.fasta --> token = 'acgb1'
 
-    The token is the text between the S# sample prefix and _MTP, lowercased, underscores kept so
-    disambiguated tissue names (cortex_keele, cortex_1_tsumagari) match dir_token / on-disk names.
-    Compact plex names (ACGB1, Pooled) carry no underscore and pass through unchanged.
-    """
     stem = re.sub(r'_MTP\.fasta$', '', os.path.basename(filename), flags=re.I)
     stem = re.sub(r'^S\d+_', '', stem)
     return stem.lower()
 
-# Datasets whose plex token gets a dataset suffix to avoid tissue-name collisions across studies
-# (e.g. Keele cortex vs Tsumagari cortex vs Takasugi has no cortex). Bare datasets need no suffix
-# because their plex/tissue names are globally unique. Add a new disambiguated dataset here only.
-DATASET_SUFFIX = {'keele2025': 'keele', 'tsumagari_2023': 'tsumagari'}
+# Note: depending on data available, some plex tokens get a dataset suffix to avoid tissue-name collisions across studies 
+# Add a new disambiguated dataset to DATASET_SUFFIX 
+DATASET_SUFFIX = {'keele_2023': 'keele', 'tsumagari_2023': 'tsumagari'}
 DATASET_RE = re.compile(r'^([A-Za-z]+(?:_?\d{4}))_(.+)$')   # <Name><year> or <Name>_<year> prefix
 
 def token_from_rest(dataset, rest):
-    """Build the canonical plex token from a dataset name + the plex/tissue remainder.
-
-    Bare datasets (Ping/Bai/Takasugi): 'ACG_B1'->'acgb1', 'Pooled'->'pooled', 'Aorta'->'aorta'.
-    Suffixed datasets: Keele 'cortex'->'cortex_keele'; Tsumagari 'Cortex_1'->'cortex_1_tsumagari'.
-    Matches the names already used in annotations/ and sample_map/ on disk.
-    """
+    # Function to build canonical plex token from dataset name + plex/tissue remainder 
     key = dataset.lower()
     if key in DATASET_SUFFIX:
         suf = DATASET_SUFFIX[key]
-        # why: Tsumagari keeps the replicate number with underscores (cortex_1_tsumagari);
-        # Keele has no replicate (cortex_keele).
         if '_' in rest:
             return '_'.join(rest.lower().split('_') + [suf])
         return f'{rest.lower()}_{suf}'
     return re.sub(r'[^A-Za-z0-9]', '', rest).lower()
 
 def dir_token(txt_dir):
-    """.../Ping2018_ACG_B1_DP/combined/txt -> 'acgb1' ; Keele2025_kidney_DP -> 'kidney_keele'."""
+    # Function to build token from MQ DP directory names
+    # e.g. .../Ping2018_ACG_B1_DP/combined/txt -> 'acgb1' ; Keele2025_kidney_DP -> 'kidney_keele'
     leaf = os.path.basename(os.path.dirname(os.path.dirname(txt_dir)))  # the *_DP folder
     leaf = re.sub(r'_DP$', '', leaf, flags=re.I)
     m = DATASET_RE.match(leaf)
@@ -110,18 +74,17 @@ def dir_token(txt_dir):
     return token_from_rest(m.group(1), m.group(2))
 
 def find_dp_txt_dirs(root):
-    """Walk a dataset root; return DP combined/txt dirs (Val excluded) with evidence+proteinGroups."""
+    # Function to walk a dataset root and return DP combined/txt dirs with evidence.txt + proteinGroups.txt
     txt_dirs = []
     for dirpath, _dirnames, filenames in os.walk(root):
         if 'evidence.txt' in filenames and 'proteinGroups.txt' in filenames:
-            # why: BP identifications come from the DP (dependent-peptide) search only.
             leaf = os.path.basename(os.path.dirname(os.path.dirname(dirpath)))
             if leaf.upper().endswith('_DP'):
                 txt_dirs.append(dirpath)
     return sorted(txt_dirs)
 
 def build_token_index(roots, species):
-    """Expand dataset roots into {plex/tissue token: DP txt dir}; error on token collision."""
+    # Function to expand dataset roots into {plex/tissue token: DP txt dir}; error on token collision
     token_to_dir = {}
     for root in roots:
         if not os.path.isdir(root):
@@ -139,7 +102,7 @@ def build_token_index(roots, species):
     return token_to_dir
 
 def parse_fasta(path):
-    """Yield (header, sequence); header keeps its leading '>'."""
+    # Function to yield (header, sequence); header keeps its leading '>'
     header, seq = None, []
     with open(path) as fh:
         for line in fh:
@@ -153,9 +116,8 @@ def parse_fasta(path):
     if header is not None:
         yield header, ''.join(seq)
 
-
-## proteinGroups.txt: accession -> (gene, description)
 def parse_protein_groups(mq_dir):
+    # Function to parse proteinGroups.txt for accession, gene, and description info
     acc_gene, acc_desc = {}, {}
     pg = os.path.join(mq_dir, 'proteinGroups.txt')
     if not os.path.exists(pg):
@@ -176,9 +138,8 @@ def parse_protein_groups(mq_dir):
                     acc_gene.setdefault(m.group(1), g.group(1))
     return acc_gene, acc_desc
 
-
-## evidence.txt: Sequence -> 'Proteins' string
 def index_evidence(mq_dir):
+    # Function to parse evidence.txt sequences for the 'Proteins' string 
     seq_to_proteins = {}
     ev = os.path.join(mq_dir, 'evidence.txt')
     if not os.path.exists(ev):
@@ -196,8 +157,9 @@ def index_evidence(mq_dir):
                 seq_to_proteins.setdefault(seq, prot)
     return seq_to_proteins
 
+
 def proteins_to_accessions(protein_str):
-    """Real UniProt accessions in a MaxQuant 'Proteins' string (drops MTP| entries)."""
+    # Function to extract UniProt accessions in a MaxQuant 'Proteins' string (drops MTP| entries)
     accs = []
     for tok in str(protein_str).split(';'):
         tok = tok.replace('CON__', '')
@@ -209,16 +171,16 @@ def proteins_to_accessions(protein_str):
     return list(dict.fromkeys(accs))
 
 
-## MTP -> base peptide by single-residue difference
+# Functions to match SAAP to its BP by a single-residue diference
 def build_length_index(sequences):
-    """Group evidence sequences by length for O(matches) base-peptide search."""
+    # Function to group evidence sequences by length for 0(matches) BP search
     by_len = defaultdict(list)
     for s in sequences:
         by_len[len(s)].append(s)
     return by_len
 
 def find_base_peptides(mtp, by_len):
-    """Base candidates = same-length evidence peptides differing at exactly one position."""
+    # Function to find BP as same-length evidence peptides differing at exactly one position
     out = []
     for cand in by_len.get(len(mtp), ()):
         if cand == mtp:
@@ -234,7 +196,7 @@ def find_base_peptides(mtp, by_len):
     return out
 
 def resolve_one_mtp(mtp, species, by_len, seq_to_proteins, acc_gene, acc_desc):
-    """Resolve a single MTP seq against one plex's DP index; return a record dict."""
+    # Function to resolve a single SAAP seq against one plex's DP index and return a record dict
     bases = find_base_peptides(mtp, by_len)
     chosen_bp, accs = '', []
     for bp in bases:
@@ -256,15 +218,15 @@ def resolve_one_mtp(mtp, species, by_len, seq_to_proteins, acc_gene, acc_desc):
                 n_base_candidates=len(bases))
 
 
-## per-file MTP collection (each file is one plex; resolved against its own DP dir only)
+# Functions to resolve each SAAP against its own plex/DP dir (important for multiple files in one dir)
 def collect_mtp_files(mtp_dir):
-    """Read all *_MTP.fasta; return [(filename, token, sorted MTP seqs), ...]."""
+    # Function to read all *_MTP.fasta; return [(filename, token, sorted MTP seqs), ...]
     files = []
     seen_tokens = {}
     for fn in sorted(os.listdir(mtp_dir)):
         if not fn.endswith('_MTP.fasta'):
             continue
-        tok = mtp_token(fn)
+        tok = plex_token(fn)
         if tok in seen_tokens:
             # why: two MTP files collapsing to one plex token would silently overwrite one CSV.
             raise SystemExit(f'two MTP files share plex token {tok!r}: '
@@ -280,7 +242,7 @@ def collect_mtp_files(mtp_dir):
     return files
 
 def write_plex(token, records, out_dir):
-    """One CSV per plex, named '{token}.csv'."""
+    # Function to write one CSV per plex, named '{token}.csv'
     path = os.path.join(out_dir, f'{token}.csv')
     cols = ['sequence', 'species', 'accession', 'gene', 'description',
             'bp_seq', 'all_accessions', 'status', 'n_base_candidates']
@@ -294,7 +256,7 @@ def write_plex(token, records, out_dir):
     print(f'  {token}: {len(records)} MTP seqs -> {dict(sorted(counts.items()))}  ({path})')
 
 
-## Run
+# Run process
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--mtp-dir', required=True,
@@ -313,7 +275,7 @@ def main():
     print(f'Read {len(files)} *_MTP.fasta files ({len(files)} plexes)')
 
     # one token -> (DP dir, species) index spanning both root sets. species comes from which root
-    # flag the dir was found under, so adding a dataset = passing its root, no token rule to edit.
+    # flag the dir was found under, so adding a dataset = passing its root, no token rule to edit
     token_index = {}
     for species, roots in (('human', a.human_root), ('mouse', a.mouse_root)):
         if not roots:

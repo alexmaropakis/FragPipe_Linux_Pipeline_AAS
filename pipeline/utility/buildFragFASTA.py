@@ -1,27 +1,24 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3 
+
 """
-2_buildFragFASTA.py
+Script to build FragPipe-compatibel FASTAs from *_MTP.fasta using the per-plex .csv from prepFASTA.py
 
-Build FragPipe-ready FASTAs from *_MTP.fasta using the per-plex CSVs from 1_PrepFASTA.py.
+Requires having run prepFASTA.py with all its dependencies 
 
-STRICT PER-PLEX. Each *_MTP.fasta (one plex/tissue) is built using ONLY its own plex CSV
-('{token}.csv' in --csv-dir, e.g. acgb1.csv, pooled.csv, aorta.csv). An MTP sequence kept in one
-plex is NOT carried into another plex's FASTA; the keep-set is loaded per plex, never merged.
+Inputs:
+    per-plex {token}.csv file in --csv-dir 
+    *_MTP.fasta - reference FASTA with substituted sequences appended
 
-Reference entries pass through unchanged. Kept MTP entries get a Philosopher-safe mock-UniProt
-header whose accession is <acc>-<mtp_id>-<plex_token> (made unique per entry). Reversed rev_ decoys
-are appended for *every* target, including MTPs.
+Outputs:
+    *_fragpipe.fasta - FASTA with rev_ decoys + SAAP sequences appended
+        Note: * = same * as *_MTP.fasta
 
-Species (for the OS/OX header tag) is read from the per-plex CSV's 'species' column written by
-1_PrepFASTA.py — never guessed from the filename, so a new dataset needs no edit here.
-
-Example:
-  python3 2_buildFragFASTA.py \
+Example usage:
+  python buildFragFASTA.py \
     --mtp-dir /scratch/maropakis.a/Dependencies/FASTA_appended/ \
     --csv-dir /scratch/maropakis.a/Dependencies/mtp_maps/ \
     --out-dir /scratch/maropakis.a/Dependencies/FASTA_fragpipe/
 
-Run after 1_PrepFASTA.py
 """
 
 import argparse
@@ -29,6 +26,7 @@ import csv
 import os
 import re
 
+# Header parsers
 SPECIES_TAG = {
     'human': ('Homo sapiens', 9606),
     'mouse': ('Mus musculus', 10090),
@@ -36,20 +34,17 @@ SPECIES_TAG = {
 MTP_ID_RE = re.compile(r'MTP\|(\d+)')   # real header format is '>MTP|7998_0_base...'
 DECOY_PREFIX = 'rev_'
 
-## Helper functions
-def plex_token(filename):
-    """e.g. 'S5_ACGB5_MTP.fasta' -> 'acgb5' ; 'S9_cortex_keele_MTP.fasta' -> 'cortex_keele'.
+# Helper functions
+def plex_token(filename): 
+    # Function to pull token from *_MTP.fasta file name 
+    # e.g. S1_ACGB1_MTP.fasta --> token = 'acgb1'
 
-    The token is the text between the S# sample prefix and _MTP, lowercased, underscores kept.
-    Must match 1_PrepFASTA.mtp_token so '{token}.csv' is the right per-plex CSV.
-    """
     stem = re.sub(r'_MTP\.fasta$', '', os.path.basename(filename), flags=re.I)
     stem = re.sub(r'^S\d+_', '', stem)
     return stem.lower()
 
-
 def load_keep(csv_path):
-    """Return ({sequence: (accession, gene)}, species) for MTPs marked 'keep' in one plex CSV."""
+    # Function to return ({sequence: (accession, gene)}, species) for SAAPs marked 'keep' in plex .csv
     keep, species = {}, None
     with open(csv_path, newline='') as fh:
         for row in csv.DictReader(fh):
@@ -61,7 +56,7 @@ def load_keep(csv_path):
     return keep, species
 
 def parse_fasta(path):
-    """Yield (header, sequence) tuples; header keeps its leading '>'."""
+    # Function to yield (header, sequence) tuples; header keeps its leading '>'
     header, seq = None, []
     with open(path) as fh:
         for line in fh:
@@ -75,13 +70,14 @@ def parse_fasta(path):
     if header is not None:
         yield header, ''.join(seq)
 
-def mtp_header(accession, gene, mid, species):
+def SAAP_header(accession, gene, mid, species):
+    # Function to build SAAP header
     os_name, ox = SPECIES_TAG[species]
     return (f'>sp|{accession}|{gene}-mut {gene} mistranslated {mid} '
             f'OS={os_name} OX={ox} GN={gene} PE=1 SV=1')
 
 def unique_accession(base, seen):
-    """Return base, or base-d2, base-d3, ... if already taken."""
+    # Function to return base, or base-d2, base-d3, ... if already taken
     accession, k = base, 2
     while accession in seen:
         accession = f'{base}-d{k}'
@@ -89,9 +85,11 @@ def unique_accession(base, seen):
     seen.add(accession)
     return accession
 
+
 def build(src, dst, keep, species, tok):
+    # Function to build FASTA
     targets, seen_acc = [], set()
-    n_ref = n_mtp = 0
+    n_ref = n_SAAP = 0
 
     for header, seq in parse_fasta(src):
         if header.startswith('>MTP|'):
@@ -103,8 +101,8 @@ def build(src, dst, keep, species, tok):
             # the accession breaks Philosopher header parsing (silent entry drop), so sanitize.
             mid = f'MTP{m.group(1)}' if m else re.sub(r'[^A-Za-z0-9]', '_', header[1:].split()[0])
             accession = unique_accession(f'{acc}-{mid}-{tok}', seen_acc)
-            targets.append((mtp_header(accession, gene, mid, species), seq))
-            n_mtp += 1
+            targets.append((SAAP_header(accession, gene, mid, species), seq))
+            n_SAAP += 1
         else:
             targets.append((header, seq))
             n_ref += 1
@@ -117,9 +115,9 @@ def build(src, dst, keep, species, tok):
         for header, seq in targets:
             out.write(f'>{DECOY_PREFIX}{header[1:]}\n{seq[::-1]}\n')
 
-    return n_ref, n_mtp
+    return n_ref, n_SAAP
 
-## Run
+# Run processing
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--mtp-dir', required=True)
@@ -137,7 +135,6 @@ def main():
         tok = plex_token(fn)
         csv_path = os.path.join(a.csv_dir, f'{tok}.csv')
         if not os.path.exists(csv_path):
-            # why: each plex must have its own CSV; a missing one would silently drop all its MTPs.
             raise SystemExit(f'{fn}: per-plex CSV not found: {csv_path}')
         keep, sp = load_keep(csv_path)
         if sp not in SPECIES_TAG:
