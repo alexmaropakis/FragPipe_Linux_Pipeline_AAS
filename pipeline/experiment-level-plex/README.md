@@ -1,12 +1,6 @@
 # experiment-level-plex/
 
-![Mode](https://img.shields.io/badge/mode-experiment--level-2E7D32?style=flat-square)
-![Python](https://img.shields.io/badge/Python-3-3776AB?style=flat-square&logo=python&logoColor=white)
-![Labelling](https://img.shields.io/badge/TMT-only-F9A825?style=flat-square)
-![Bridging](https://img.shields.io/badge/bridging-reference%20channel-6E44FF?style=flat-square)
-![Output](https://img.shields.io/badge/output-SLURM%20submit-00838F?style=flat-square)
-
-Prep a FragPipe **run** that spans several TMT plexes searched and quantified together, so
+Prep a FragPipe run that spans several TMT plexes searched and quantified together, so
 TMT-Integrator can bridge across plexes on a shared reference channel. Use this instead of
 `per-plex/` whenever plexes need to be normalized against each other.
 
@@ -20,7 +14,7 @@ TMT-Integrator can bridge across plexes on a shared reference channel. Use this 
 
 - **run** — the whole FragPipe job: one workflow, one manifest, one FASTA, one submit script.
 - **experiment** — one TMT plex inside that run. You name it (`cortex_1`, `cortex_2`, …), point it
-  at that plex's raw dir, and give the **plex key** that selects its rows from the shared
+  at that plex's raw dir, and give the plex key that selects its rows from the shared
   sample_map.
 
 ## Sample map layout
