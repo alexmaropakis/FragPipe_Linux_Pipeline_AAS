@@ -29,6 +29,10 @@ into `<spectra-root>/<run>/<experiment>/`. Then, once per run: writes one manife
 file across all experiments, patches the workflow template, writes a human-readable sample table,
 and emits `submit_<run>.sh`.
 
+Bridge channels get a unique annotation name across all plexes, sharing the workflow's
+`tmtintegrator.ref_tag` as a prefix: any `sample_name` containing it (e.g. `Bridge`) becomes
+`Bridge1`, `Bridge2`, ..., numbered in `--experiment` order and then channel order.
+
 All experiments must agree on channel count (one workflow → one `channel_num`); a mismatch warns
 and uses the max.
 
