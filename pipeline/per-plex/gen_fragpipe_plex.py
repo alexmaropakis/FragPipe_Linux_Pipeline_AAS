@@ -20,6 +20,8 @@ Example:
     --spectra-root /scratch/maropakis.a/spectra
 
 Then: sbatch /scratch/maropakis.a/Frag_outputs/submit/submit_acgb1.sh
+
+Note: make sure to "source activate  /projects/slavov/AM/envs/py39" before running this code
 """
 
 import argparse
@@ -30,7 +32,6 @@ import shutil
 import subprocess
 import sys
 from collections import Counter
-
 import pandas as pd
 
 CHANNEL_ORDER = ['126', '127N', '127C', '128N', '128C', '129N', '129C', '130N', '130C',

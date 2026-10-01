@@ -32,6 +32,9 @@ Example:
     --spectra-root /scratch/maropakis.a/spectra
 
 Then: sbatch /scratch/maropakis.a/Frag_outputs/submit/submit_cortex_tsumagari.sh
+
+Note: make sure to "source activate  /projects/slavov/AM/envs/py39" before running this code
+
 """
 
 import argparse
@@ -42,7 +45,6 @@ import shlex
 import subprocess
 import sys
 from collections import Counter
-
 import numpy as np
 import pandas as pd
 from psims.mzml import MzMLWriter
