@@ -23,15 +23,15 @@ Example:
   python gen_fragpipe_experiment_plex.py \\
     --run        cortex_tsumagari \\
     --species    mouse \\
-    --workflow   /home/maropakis.a/scripts/Search_gen/FragPipe/templates/TMT10_MS2_Val.workflow \\
-    --sample-map /scratch/maropakis.a/Dependencies/sample_map/sample_map_tsumagari_cortex.xlsx \\
-    --experiment cortex_1 /scratch/maropakis.a/MQ_raw/Tsumagari_2023/cortex_1 3 \\
-    --experiment cortex_2 /scratch/maropakis.a/MQ_raw/Tsumagari_2023/cortex_2 4 \\
-    --fasta      /scratch/maropakis.a/Dependencies/FASTA_fragpipe/S9_cortex_tsumagari_fragpipe.fasta \\
-    --out-dir    /scratch/maropakis.a/Frag_outputs \\
-    --spectra-root /scratch/maropakis.a/spectra
+    --workflow   /home/$USER/scripts/Search_gen/FragPipe/templates/TMT10_MS2_Val.workflow \\
+    --sample-map /scratch/$USER/Dependencies/sample_map/sample_map_tsumagari_cortex.xlsx \\
+    --experiment cortex_1 /scratch/$USER/MQ_raw/Tsumagari_2023/cortex_1 3 \\
+    --experiment cortex_2 /scratch/$USER/MQ_raw/Tsumagari_2023/cortex_2 4 \\
+    --fasta      /scratch/$USER/Dependencies/FASTA_fragpipe/S9_cortex_tsumagari_fragpipe.fasta \\
+    --out-dir    /scratch/$USER/Frag_outputs \\
+    --spectra-root /scratch/$USER/spectra
 
-Then: sbatch /scratch/maropakis.a/Frag_outputs/submit/submit_cortex_tsumagari.sh
+Then: sbatch /scratch/$USER/Frag_outputs/submit/submit_cortex_tsumagari.sh
 
 Note: make sure to "source activate  /projects/slavov/AM/envs/py39" before running this code
 
@@ -288,8 +288,8 @@ def parse_args():
                     help="msconvert command for .mzXML, e.g. 'singularity exec pwiz.sif msconvert'")
     ap.add_argument('--no-convert', action='store_true', help='skip .raw -> .mzML')
     ap.add_argument('--allow-raw', action='store_true', help='put .raw in the manifest unconverted')
-    ap.add_argument('--fragpipe-bin', default='/home/maropakis.a/fragpipe/fragpipe-24.0/bin/fragpipe')
-    ap.add_argument('--tools-folder', default='/home/maropakis.a/fragpipe/fragpipe-24.0/tools')
+    ap.add_argument('--fragpipe-bin', default=os.path.expandvars('/home/$USER/fragpipe/fragpipe-24.0/bin/fragpipe'))
+    ap.add_argument('--tools-folder', default=os.path.expandvars('/home/$USER/fragpipe/fragpipe-24.0/tools'))
     ap.add_argument('--java-home', default=os.path.expanduser('~/bin/jdk-17.0.18+8'))
     ap.add_argument('--partition', default='short')
     ap.add_argument('--threads', type=int, default=16)

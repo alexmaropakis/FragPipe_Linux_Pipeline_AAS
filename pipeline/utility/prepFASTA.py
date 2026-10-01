@@ -19,13 +19,13 @@ Outputs:
         
 Example usage:
   python prepFASTA.py \
-    --mtp-dir     /scratch/maropakis.a/Dependencies/FASTA_appended/ \
-    --human-root  /scratch/maropakis.a/MQ_outputs/Ping_2018 \
-    --human-root  /scratch/maropakis.a/MQ_outputs/Bai_2020 \
-    --mouse-root  /scratch/maropakis.a/MQ_outputs/Takasugi_2024 \
-    --mouse-root  /scratch/maropakis.a/MQ_outputs/Keele_2025 \
-    --mouse-root  /scratch/maropakis.a/MQ_outputs/Tsumagari_2023 \
-    --out-dir     /scratch/maropakis.a/Dependencies/mtp_maps/
+    --mtp-dir     /scratch/$USER/Dependencies/FASTA_appended/ \
+    --human-root  /scratch/$USER/MQ_outputs/Ping_2018 \
+    --human-root  /scratch/$USER/MQ_outputs/Bai_2020 \
+    --mouse-root  /scratch/$USER/MQ_outputs/Takasugi_2024 \
+    --mouse-root  /scratch/$USER/MQ_outputs/Keele_2025 \
+    --mouse-root  /scratch/$USER/MQ_outputs/Tsumagari_2023 \
+    --out-dir     /scratch/$USER/Dependencies/mtp_maps/
 
 """
 

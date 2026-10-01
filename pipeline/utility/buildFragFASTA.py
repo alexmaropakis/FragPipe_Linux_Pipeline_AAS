@@ -15,9 +15,9 @@ Outputs:
 
 Example usage:
   python buildFragFASTA.py \
-    --mtp-dir /scratch/maropakis.a/Dependencies/FASTA_appended/ \
-    --csv-dir /scratch/maropakis.a/Dependencies/mtp_maps/ \
-    --out-dir /scratch/maropakis.a/Dependencies/FASTA_fragpipe/
+    --mtp-dir /scratch/$USER/Dependencies/FASTA_appended/ \
+    --csv-dir /scratch/$USER/Dependencies/mtp_maps/ \
+    --out-dir /scratch/$USER/Dependencies/FASTA_fragpipe/
 
 """
 

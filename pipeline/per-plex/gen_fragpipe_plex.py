@@ -9,17 +9,17 @@ Prepare one TMT plex for FragPipe (TMT-labelled data only).
   5. submit_<plex>.sh
 
 Example:
-  python gen_fragpipe_plex.py /scratch/maropakis.a/MQ_raw/Ping_2018/ACG/b1 \\
+  python gen_fragpipe_plex.py /scratch/$USER/MQ_raw/Ping_2018/ACG/b1 \\
     --plex       acgb1 \\
     --species    human \\
     --channels   10 \\
-    --workflow   /home/maropakis.a/scripts/FragPipe/templates/TMT10_MS3_Val.workflow \\
-    --sample-map /scratch/maropakis.a/Dependencies/sample_map/acgb1.xlsx \\
-    --fasta-dir  /scratch/maropakis.a/Dependencies/FASTA_fragpipe \\
-    --out-dir    /scratch/maropakis.a/Frag_outputs \\
-    --spectra-root /scratch/maropakis.a/spectra
+    --workflow   /home/$USER/scripts/FragPipe/templates/TMT10_MS3_Val.workflow \\
+    --sample-map /scratch/$USER/Dependencies/sample_map/acgb1.xlsx \\
+    --fasta-dir  /scratch/$USER/Dependencies/FASTA_fragpipe \\
+    --out-dir    /scratch/$USER/Frag_outputs \\
+    --spectra-root /scratch/$USER/spectra
 
-Then: sbatch /scratch/maropakis.a/Frag_outputs/submit/submit_acgb1.sh
+Then: sbatch /scratch/$USER/Frag_outputs/submit/submit_acgb1.sh
 
 Note: make sure to "source activate  /projects/slavov/AM/envs/py39" before running this code
 """
@@ -138,8 +138,8 @@ def parse_args():
     ap.add_argument('--spectra-root', required=True)
     ap.add_argument('--trfp', default=os.path.expanduser('~/thermoRawFileParser/ThermoRawFileParser'))
     ap.add_argument('--no-convert', action='store_true', help='skip .raw -> .mzML')
-    ap.add_argument('--fragpipe-bin', default='/home/maropakis.a/fragpipe/fragpipe-24.0/bin/fragpipe')
-    ap.add_argument('--tools-folder', default='/home/maropakis.a/fragpipe/fragpipe-24.0/tools')
+    ap.add_argument('--fragpipe-bin', default=os.path.expandvars('/home/$USER/fragpipe/fragpipe-24.0/bin/fragpipe'))
+    ap.add_argument('--tools-folder', default=os.path.expandvars('/home/$USER/fragpipe/fragpipe-24.0/tools'))
     ap.add_argument('--java-home', default=os.path.expanduser('~/bin/jdk-17.0.18+8'))
     ap.add_argument('--partition', default='short')
     ap.add_argument('--threads', type=int, default=16)

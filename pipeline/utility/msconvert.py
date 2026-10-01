@@ -12,9 +12,9 @@ Output:
 
 Dependencies: ThermoRawFileParser on Path
 
-python msconvert.py /scratch/maropakis.a/MQ_raw/____ \
+python msconvert.py /scratch/$USER/MQ_raw/____ \
     --plex ____ \
-    --spectra-root /scratch/maropakis.a/spectra
+    --spectra-root /scratch/$USER/spectra
 
 """
 

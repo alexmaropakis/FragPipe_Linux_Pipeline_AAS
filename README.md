@@ -12,16 +12,16 @@ This implementation is optimized for using FragPipe v24.0 and its dependencies t
 
 ## Recommended directory formats on HPC
 ```
-/home/maropakis.a/scripts/
+/home/$USER/scripts/
 └── Fragpipe/
     ├── templates/                  # contains all workflow templates
     ├── per-plex/                   # contains all per-plex scripts
     ├── experiment-level-plex/      # contains all experiment-level scripts
     └── utility/                    # contains all utility scripts (FASTA gen, msconvert)
-/home/maropakis.a/
+/home/$USER/
 └── ThermoRawFileParser/            # contains everything for TRFP
 
-/scratch/maropakis.a/
+/scratch/$USER/
 ├── Frag_outputs/                   # will be populated with all output information
 ├── Dependencies/
 │   ├── sample_map/                 # contains all *_sample_map.xlsx

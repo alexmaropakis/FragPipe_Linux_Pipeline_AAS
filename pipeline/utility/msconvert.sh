@@ -6,4 +6,4 @@
 #SBATCH --time=04:00:00
 
 
-python /home/maropakis.a/scripts/search_gen/msconvert.py /scratch/maropakis.a/MQ_raw/Tsumagari_2023/cortex_1 --plex cortex_1 --spectra-root /scratch/maropakis.a/spectra
+python /home/$USER/scripts/search_gen/msconvert.py /scratch/$USER/MQ_raw/Tsumagari_2023/cortex_1 --plex cortex_1 --spectra-root /scratch/$USER/spectra

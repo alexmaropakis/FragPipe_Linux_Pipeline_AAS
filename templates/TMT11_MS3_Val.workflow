@@ -3,7 +3,7 @@
 
 # Please edit the following path to point to the correct location.
 # Use one per-plex MTP FASTA. In Windows, replace single '\' with '\\'.
-database.db-path=/scratch/maropakis.a/FASTA_fragpipe/PLACEHOLDER_plex_MTP.fasta
+database.db-path=/scratch/$USER/FASTA_fragpipe/PLACEHOLDER_plex_MTP.fasta
 
 crystalc.run-crystalc=false
 database.decoy-tag=rev_

@@ -10,13 +10,15 @@
 # If building multiple single-plexes at once, instead of running in terminal,
 # write all commands to build the plexes here 
 
-GEN=/home/maropakis.a/scripts/search_gen/Alex_gen_fragpipe.py
-RAW=/scratch/maropakis.a/MQ_raw
-SMAP=/scratch/maropakis.a/Dependencies/sample_map
-FASTA=/scratch/maropakis.a/Dependencies/FASTA_fragpipe
-TPL=/home/maropakis.a/scripts/search_gen/FragPipe/templates
-OUT=/scratch/maropakis.a/Frag_outputs
-SPECTRA=/scratch/maropakis.a/spectra
+source activate  /projects/slavov/AM/envs/py39
+
+GEN=/home/$USER/scripts/search_gen/Alex_gen_fragpipe.py
+RAW=/scratch/$USER/MQ_raw
+SMAP=/scratch/$USER/Dependencies/sample_map
+FASTA=/scratch/$USER/Dependencies/FASTA_fragpipe
+TPL=/home/$USER/scripts/search_gen/FragPipe/templates
+OUT=/scratch/$USER/Frag_outputs
+SPECTRA=/scratch/$USER/spectra
 
 # gen <plex_token> <species> <workflow_file> <raw_subdir> <sample_map_file>
 gen() {

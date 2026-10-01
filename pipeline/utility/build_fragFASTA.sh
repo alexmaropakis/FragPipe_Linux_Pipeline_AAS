@@ -11,18 +11,18 @@
 
 set -euo pipefail
 
-cd /home/maropakis.a/scripts/search_gen/ # run from the dir holding the .py scripts
-DEP=/scratch/maropakis.a/Dependencies
+cd /home/$USER/scripts/search_gen/ # run from the dir holding the .py scripts
+DEP=/scratch/$USER/Dependencies
 mkdir -p "$DEP/mtp_maps" "$DEP/FASTA_fragpipe"
 
 # --- Stage 1: Generate per-species CSVs (query id = full header + TMT tag) ---
   python prepFASTA.py \
-    --mtp-dir     /scratch/maropakis.a/Dependencies/FASTA_appended/ \
-    --human-root  /scratch/maropakis.a/MQ_outputs/Ping_2018 \
-    --human-root  /scratch/maropakis.a/MQ_outputs/Bai_2020 \
-    --mouse-root  /scratch/maropakis.a/MQ_outputs/Takasugi_2024 \
-    --mouse-root /scratch/maropakis.a/MQ_outputs/Tsumagari_2023 \
-    --out-dir     /scratch/maropakis.a/Dependencies/mtp_maps/
+    --mtp-dir     /scratch/$USER/Dependencies/FASTA_appended/ \
+    --human-root  /scratch/$USER/MQ_outputs/Ping_2018 \
+    --human-root  /scratch/$USER/MQ_outputs/Bai_2020 \
+    --mouse-root  /scratch/$USER/MQ_outputs/Takasugi_2024 \
+    --mouse-root /scratch/$USER/MQ_outputs/Tsumagari_2023 \
+    --out-dir     /scratch/$USER/Dependencies/mtp_maps/
 
 # --- Stage 2: build per-plex FragPipe FASTAs from the per-plex CSVs ---
 python buildFragFASTA.py \
