@@ -38,21 +38,48 @@ and uses the max.
 
 ## Usage
 
-```bash
-python3 gen_fragpipe_experiment_plex.py \
-  --run        cortex_tsumagari \
-  --species    mouse \
-  --workflow   templates/TMT10_MS2_Val.workflow \
-  --sample-map sample_map/sample_map_tsumagari_cortex.xlsx \
-  --experiment cortex_1 MQ_raw/Tsumagari_2023/cortex_1 3 \
-  --experiment cortex_2 MQ_raw/Tsumagari_2023/cortex_2 4 \
-  --fasta      Dependencies/FASTA_fragpipe/S9_cortex_tsumagari_fragpipe.fasta \
-  --out-dir    Frag_outputs \
-  --spectra-root spectra
+### Required arguments only
 
-sbatch Frag_outputs/submit/submit_cortex_tsumagari.sh
+```bash
+args=(
+  --run          cortex_tsumagari                                                   # names all outputs
+  --workflow     /home/$USER/scripts/FragPipe/templates/TMT10_MS2_Val.workflow
+  --sample-map   /scratch/$USER/Dependencies/sample_map/sample_map_tsumagari_cortex.xlsx
+  --experiment   cortex_1 /scratch/$USER/MQ_raw/Tsumagari_2023/cortex_1 3           # NAME | DIR | PLEX_KEY
+  --experiment   cortex_2 /scratch/$USER/MQ_raw/Tsumagari_2023/cortex_2 4           # one per plex
+  --fasta        /scratch/$USER/Dependencies/FASTA_fragpipe/S9_cortex_tsumagari_fragpipe.fasta
+  --out-dir      /scratch/$USER/Frag_outputs
+  --spectra-root /scratch/$USER/spectra
+)
+python3 gen_fragpipe_experiment_plex.py "${args[@]}"
+sbatch /scratch/$USER/Frag_outputs/submit/submit_cortex_tsumagari.sh
 ```
 
-Repeat `--experiment NAME RAW_DIR PLEX_KEY` once per plex in the run. Unlike `per-plex/`, the FASTA
-is passed explicitly with `--fasta` rather than looked up by token. The same submit-script and
-conversion knobs (`--no-convert`, `--threads`, `--ram`, etc.) apply.
+### Every argument
+
+```bash
+args=(
+  --run          cortex_tsumagari                                    
+  --workflow     /home/$USER/scripts/FragPipe/templates/TMT10_MS2_Val.workflow
+  --sample-map   /scratch/$USER/Dependencies/sample_map/sample_map_tsumagari_cortex.xlsx
+  --experiment   cortex_1 /scratch/$USER/MQ_raw/Tsumagari_2023/cortex_1 3         
+  --experiment   cortex_2 /scratch/$USER/MQ_raw/Tsumagari_2023/cortex_2 4        
+  --fasta        /scratch/$USER/Dependencies/FASTA_fragpipe/S9_cortex_tsumagari_fragpipe.fasta
+  --out-dir      /scratch/$USER/Frag_outputs
+  --spectra-root /scratch/$USER/spectra
+  --trfp         ~/thermoRawFileParser/ThermoRawFileParser                          # .raw -> .mzML
+  --msconvert    msconvert                                                          # .mzXML -> .mzML
+  --no-convert                                                                      # skip .raw conversion
+  --allow-raw                                                                       # keep .raw in manifest
+  --fragpipe-bin /home/$USER/fragpipe/fragpipe-24.0/bin/fragpipe
+  --tools-folder /home/$USER/fragpipe/fragpipe-24.0/tools
+  --java-home    ~/bin/jdk-17.0.18+8
+  --partition    short                                                
+  --threads      16
+  --ram          64                                                     
+  --time         24:00:00                                                  
+)
+python3 gen_fragpipe_experiment_plex.py "${args[@]}"
+```
+
+Optional values shown are the defaults; `--no-convert` and `--allow-raw` are off unless passed.

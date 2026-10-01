@@ -20,7 +20,7 @@
 
 - **TMT only.** The per-plex and experiment-level generators are for TMT-labelled data; channel
   order is the canonical TMT10–TMTpro18 sequence.
-- **Species** is `human` or `mouse`, used to tag headers (OS/OX) — not guessed from filenames.
+- **Species** (`human`/`mouse`) only matters for the FASTA utilities, which tag headers (OS/OX).
 - **Plex/run tokens** are lowercased but keep underscores (`cortex_keele`), and are the key that
   ties a sample_map, a FASTA, and a spectra directory together.
 - **Outputs** land under one `--out-dir` (`Frag_outputs/`) split into `workflows/`, `manifests/`,

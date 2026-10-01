@@ -29,7 +29,6 @@ The FASTA is found automatically in `--fasta-dir` by matching the plex token aga
 ```bash
 python3 gen_fragpipe_plex.py <raw_dir> \
   --plex        acgb1 \
-  --species     human \
   --workflow    templates/TMT10_MS3_Val.workflow \
   --sample-map  sample_map/acgb1.xlsx \
   --fasta-dir   Dependencies/FASTA_fragpipe \

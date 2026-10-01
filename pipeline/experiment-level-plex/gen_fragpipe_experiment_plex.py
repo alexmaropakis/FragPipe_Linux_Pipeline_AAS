@@ -22,7 +22,6 @@ sample_map layout (one .xlsx per run):
 Example:
   python gen_fragpipe_experiment_plex.py \\
     --run        cortex_tsumagari \\
-    --species    mouse \\
     --workflow   /home/$USER/scripts/Search_gen/FragPipe/templates/TMT10_MS2_Val.workflow \\
     --sample-map /scratch/$USER/Dependencies/sample_map/sample_map_tsumagari_cortex.xlsx \\
     --experiment cortex_1 /scratch/$USER/MQ_raw/Tsumagari_2023/cortex_1 3 \\
@@ -56,7 +55,6 @@ TMT10 = TMTPRO[:9] + ['131']
 PLEX_CHANNELS = {10: TMT10, 11: TMTPRO[:11], 16: TMTPRO[:16], 18: TMTPRO}
 ORD = {c: i for i, c in enumerate(TMT10 + TMTPRO[9:])}
 
-SPECIES = ('human', 'mouse')
 PLEX_SIZE_RE = re.compile(r'_(\d+)plex[._]', re.IGNORECASE)  # 'TMT0301_16plex_f001' -> 16
 KEY_COLS = ('tmt_plex', 'sample_id', 'box')
 
@@ -273,7 +271,6 @@ export PATH=$JAVA_HOME/bin:$PATH
 def parse_args():
     ap = argparse.ArgumentParser(description='Prep one FragPipe run spanning multiple TMT plexes.')
     ap.add_argument('--run', required=True, help='run name, e.g. cortex_tsumagari')
-    ap.add_argument('--species', required=True, choices=SPECIES)
     ap.add_argument('--experiment', required=True, action='append', nargs=3,
                     metavar=('NAME', 'RAW_DIR', 'PLEX'),
                     help='experiment name, its spectra dir, and its sample_map key '
@@ -311,7 +308,7 @@ def main():
     template = open(a.workflow).read()
     ref_tag = read_ref_tag(template)
     smap = load_sample_map(a.sample_map)
-    print(f'[{run}] species={a.species}  {len(a.experiment)} experiments  bridges -> {ref_tag}N')
+    print(f'[{run}]  {len(a.experiment)} experiments  bridges -> {ref_tag}N')
 
     exps, entries, next_bridge = {}, [], 1  # entries: (staged path, experiment) for the manifest
     for name, raw_dir, key in a.experiment:

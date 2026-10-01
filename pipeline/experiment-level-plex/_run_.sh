@@ -15,8 +15,7 @@ source activate  /projects/slavov/AM/envs/py39
 
 python /home/$USER/scripts/Search_gen/FragPipe/gen_fragpipe_experiment_plex.py \
   --msconvert "$HOME/.conda/envs/pwiz/bin/msconvert" \
-  --run FTLD \
-  --species human \
+  --run FTLD \ # this is just what everything will be named prefix wise
   --workflow /home/$USER/scripts/Search_gen/FragPipe/templates/TMT-18-Val.workflow \
   --sample-map /scratch/$USER/Dependencies/sample_map/sample_map_ftld.xlsx \
   --experiment FTLD_1 /scratch/$USER/MQ_raw/Shrestha_2026/cohorts/mzXML/ftld/b1 1 \

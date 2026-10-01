@@ -20,16 +20,16 @@ TPL=/home/$USER/scripts/search_gen/FragPipe/templates
 OUT=/scratch/$USER/Frag_outputs
 SPECTRA=/scratch/$USER/spectra
 
-# gen <plex_token> <species> <workflow_file> <raw_subdir> <sample_map_file>
+# gen <plex_token> <workflow_file> <raw_subdir> <sample_map_file>
 gen() {
-  python3 "$GEN" "$RAW/$4" \
-    --plex "$1" --species "$2" \
-    --workflow "$TPL/$3" --sample-map "$SMAP/$5" \
+  python3 "$GEN" "$RAW/$3" \
+    --plex "$1" \
+    --workflow "$TPL/$2" --sample-map "$SMAP/$4" \
     --fasta-dir "$FASTA" --out-dir "$OUT" --spectra-root "$SPECTRA"
 }
 
 # example
-gen acgb1 human TMT10_MS3_Val.workflow Ping_2018/ACG/b1 sample_map_acgb1.xlsx
+gen acgb1 TMT10_MS3_Val.workflow Ping_2018/ACG/b1 sample_map_acgb1.xlsx
 
 echo
 echo "All plexes prepped. Submit them with:"
