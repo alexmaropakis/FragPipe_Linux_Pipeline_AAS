@@ -9,18 +9,20 @@ Prepare one TMT plex for FragPipe (TMT-labelled data only).
   5. submit_<plex>.sh
 
 Example:
-  python gen_fragpipe_plex.py /scratch/$USER/MQ_raw/Ping_2018/ACG/b1 \\
+  python gen_fragpipe_plex.py /scratch/maropakis.a/MQ_raw/Ping_2018/ACG/b1 \\
     --plex       acgb1 \\
+    --species    human \\
     --channels   10 \\
-    --workflow   /home/$USER/scripts/FragPipe/templates/TMT10_MS3_Val.workflow \\
-    --sample-map /scratch/$USER/Dependencies/sample_map/acgb1.xlsx \\
-    --fasta-dir  /scratch/$USER/Dependencies/FASTA_fragpipe \\
-    --out-dir    /scratch/$USER/Frag_outputs \\
-    --spectra-root /scratch/$USER/spectra
+    --workflow   /home/maropakis.a/scripts/FragPipe/templates/TMT10_MS3_Val.workflow \\
+    --sample-map /scratch/maropakis.a/Dependencies/sample_map/acgb1.xlsx \\
+    --fasta-dir  /scratch/maropakis.a/Dependencies/FASTA_fragpipe \\
+    --out-dir    /scratch/maropakis.a/Frag_outputs \\
+    --spectra-root /scratch/maropakis.a/spectra
 
-Then: sbatch /scratch/$USER/Frag_outputs/submit/submit_acgb1.sh
+Then: sbatch /scratch/maropakis.a/Frag_outputs/submit/submit_acgb1.sh
 
 Note: make sure to "source activate  /projects/slavov/AM/envs/py39" before running this code
+
 """
 
 import argparse
@@ -36,6 +38,7 @@ import pandas as pd
 CHANNEL_ORDER = ['126', '127N', '127C', '128N', '128C', '129N', '129C', '130N', '130C',
                  '131', '131N', '131C', '132N', '132C', '133N', '133C', '134N', '134C', '135N']
 ORD = {c: i for i, c in enumerate(CHANNEL_ORDER)}
+SPECIES = ('human', 'mouse')
 
 
 def nonempty(path):
@@ -126,6 +129,7 @@ def parse_args():
     ap = argparse.ArgumentParser(description='Prep one FragPipe plex end-to-end + submit script.')
     ap.add_argument('raw_dir', help="dir holding this plex's .raw (or pre-made .mzML)")
     ap.add_argument('--plex', required=True, help='plex token, e.g. acgb1 / pooled / aorta')
+    ap.add_argument('--species', required=True, choices=SPECIES)
     ap.add_argument('--channels', type=int, default=None,
                     help='expected channel count; only checked (count comes from the sample_map)')
     ap.add_argument('--workflow', required=True, help='FragPipe .workflow template')
@@ -135,8 +139,8 @@ def parse_args():
     ap.add_argument('--spectra-root', required=True)
     ap.add_argument('--trfp', default=os.path.expanduser('~/thermoRawFileParser/ThermoRawFileParser'))
     ap.add_argument('--no-convert', action='store_true', help='skip .raw -> .mzML')
-    ap.add_argument('--fragpipe-bin', default=os.path.expandvars('/home/$USER/fragpipe/fragpipe-24.0/bin/fragpipe'))
-    ap.add_argument('--tools-folder', default=os.path.expandvars('/home/$USER/fragpipe/fragpipe-24.0/tools'))
+    ap.add_argument('--fragpipe-bin', default='/home/maropakis.a/fragpipe/fragpipe-24.0/bin/fragpipe')
+    ap.add_argument('--tools-folder', default='/home/maropakis.a/fragpipe/fragpipe-24.0/tools')
     ap.add_argument('--java-home', default=os.path.expanduser('~/bin/jdk-17.0.18+8'))
     ap.add_argument('--partition', default='short')
     ap.add_argument('--threads', type=int, default=16)
@@ -153,7 +157,7 @@ def main():
     out = {d: os.path.join(a.out_dir, d) for d in ('workflows', 'manifests', 'annotations', 'submit')}
     for d in out.values():
         os.makedirs(d, exist_ok=True)
-    print(f'[{plex}] channels={a.channels or "auto"}')
+    print(f'[{plex}] species={a.species} channels={a.channels or "auto"}')
 
     annot_path = os.path.join(out['annotations'], f'{plex}_annotation.txt')
     channels = write_annotation(a.sample_map, annot_path, a.channels)
